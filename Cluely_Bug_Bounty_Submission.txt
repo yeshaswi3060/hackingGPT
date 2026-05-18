@@ -1,0 +1,86 @@
+# Vulnerability Report: Cluely Desktop Application (v2.0.185)
+
+## Overview
+During a security review of the Cluely Desktop Application (Electron, v2.0.185), several security misconfigurations and build pipeline issues were identified. While no critical account takeover or server-side paywall bypasses were found (kudos to the backend engineering team for proper defense-in-depth), the following findings represent clear deviations from secure software development practices and pose moderate risks to application telemetry, identity management, and UI integrity.
+
+---
+
+### Finding 1: Cleartext Storage of Sensitive Information (CWE-312)
+**Severity:** Medium
+**Location:** `dist-electron/main.js`
+
+**Description:**
+The production Electron binary contains hardcoded active tokens for third-party infrastructure services. Specifically, the PostHog Project Token (`phc_1H7N4xZ65F4qTKvt0AHNteFM6lS9tz2PNwZEEdivjox`) and the RevenueCat Web Public API Key (`rcb_grFIIrbOEZADTZUPAOTptHACmYDR`) are exposed in plaintext.
+
+**Impact:**
+An attacker can extract the PostHog token to forge arbitrary events, flooding the analytics dashboard with garbage data, which destroys telemetry accuracy and could trigger false billing alerts. Active proof-of-concept testing confirmed that sending 50 consecutive malicious telemetry payloads resulted in 100% successful `200 OK` responses with no rate limiting enforced. This complete lack of rate limiting significantly amplifies the vulnerability's impact, making it trivial for an attacker to overwhelm the analytics pipeline in seconds. The RevenueCat key similarly exposes billing configuration details.
+
+**Mitigation:**
+Do not hardcode third-party API keys directly into the Electron main process. Fetch non-critical public keys dynamically from the backend upon authentication, or use a proxy service to handle analytics requests server-side.
+
+
+**POWERSHELL CODE**
+$apiKey = "phc_1H7N4xZ65F4qTKvt0AHNteFM6lS9tz2PNwZEEdivjox"
+$url = "https://ph.cluely.com/capture/"
+
+for ($i = 1; $i -le 50; $i++) {
+    $body = @{
+        api_key = $apiKey
+        event = "test_rate_limit_check"
+        properties = @{
+            distinct_id = "test_user_${i}"
+        }
+    } | ConvertTo-Json
+
+    try {
+        $response = Invoke-RestMethod -Uri $url -Method Post -Body $body -ContentType "application/json"
+        Write-Host "Request ${i}: Success (200 OK)" -ForegroundColor Green
+    } catch {
+        Write-Host "Request ${i}: Blocked ($($_.Exception.Response.StatusCode.value__))" -ForegroundColor Red
+    }
+}
+
+---
+
+### Finding 2: Hardcoded Identity Provider Configuration (CWE-312)
+**Severity:** Low/Medium
+**Location:** `dist-electron/main.js` and `dist/assets/env-DHNY7HaX.js`
+
+**Description:**
+The application's Clerk authentication publishable key (`VITE_CLERK_PUBLISHABLE_KEY: "pk_live_Y2xlcmsuY2x1ZWx5LmNvbSQ"`) is hardcoded within the application bundle. 
+
+**Impact:**
+While publishable keys are intended to be public in web contexts, shipping them inside a desktop application expands the attack surface. An attacker could extract this key to build a rogue client application or script that authenticates directly against Cluely's Clerk instance, potentially bypassing client-specific rate limits or CORS protections intended for the official application.
+
+**Mitigation:**
+Consider proxying authentication initialization through your own backend, or strictly enforcing origin and domain restrictions within the Clerk dashboard to reject requests not originating from the signed Electron bundle's specific protocol/origin.
+
+---
+
+### Finding 3: Active Debug Code in Production Build (CWE-489)
+**Severity:** Low
+**Location:** `dist/assets/route-B6rDaXtC.js`
+
+**Description:**
+The production bundle includes internal developer testing and debugging logic. Specifically, the code contains a "Simulated Store Modal" overlay, complete with functional UI buttons labeled "Test valid purchase" and "Test failed purchase" designed to mock RevenueCat transactions.
+
+**Impact:**
+While active testing indicates that the backend successfully blocks exploitation of this modal via Zod validation (`Plan not found`), shipping active debug code exposes internal development workflows and provides attackers with unnecessary insights into the application's state management and billing logic.
+
+**Mitigation:**
+Ensure that environment variables (e.g., `NODE_ENV === 'production'`) are correctly configured during the Vite/Rollup build process so that all simulated testing modals, debug logging, and development-only routes are stripped from the final ASAR bundle via dead-code elimination.
+
+---
+
+### Finding 4: Client-Side Enforcement of Server-Side Security (CWE-602)
+**Severity:** Informational (UI Spoofing)
+**Location:** `%APPDATA%\cluely-v2\shared-state.json` and `dist/assets/posthog-AFENQ5uR.js`
+
+**Description:**
+The application relies on a local, unencrypted JSON state file to determine the user's UI entitlement tier. The frontend evaluates `a.revenueCatEntitlements.includes("v2_pro")` to unlock premium UI components. 
+
+**Impact:**
+A user can inject the `"v2_pro"` flag directly into their local `shared-state.json` file and mark the file as Read-Only in Windows to prevent the application from synchronizing with the server. This results in a permanent client-side bypass of the premium paywall UI. *Note: Active testing confirmed that actual premium endpoints are securely protected by the backend, meaning this flaw only allows local UI spoofing, not theft of service.*
+
+**Mitigation:**
+The application should not trust local JSON files for authorization rendering. Instead of relying on a syncable local state file, the client should verify the `stripeEntitlements` public metadata directly from the secure Clerk JWT upon application launch, or implement cryptographic signing/integrity checks on the local state file to prevent tampering.

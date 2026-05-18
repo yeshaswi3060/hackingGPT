@@ -1,0 +1,2 @@
+!function(){try{var e="undefined"!=typeof window?window:"undefined"!=typeof global?global:"undefined"!=typeof globalThis?globalThis:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&(e._posthogChunkIds=e._posthogChunkIds||{},e._posthogChunkIds[n]="019de4e7-1e2f-7340-8ab5-758bbff45791")}catch(e){}}();import{n as e}from"./emotion-react-jsx-runtime.browser.esm-mc3jWDhr.js";import{t}from"./UserPreview-DMpoPx7c.js";var n=n=>e(t,{elementId:`personalWorkspace`,rounded:!1,...n});export{n as t};
+//# chunkId=019de4e7-1e2f-7340-8ab5-758bbff45791

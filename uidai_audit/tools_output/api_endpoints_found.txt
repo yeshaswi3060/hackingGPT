@@ -1,0 +1,7 @@
+UIDAI main.dart.js Extraction Results
+============================================================
+
+
+[API Endpoint]
+  https://backofficestage.uidai.gov.in
+  https://tathyamndc.uidai.gov.in

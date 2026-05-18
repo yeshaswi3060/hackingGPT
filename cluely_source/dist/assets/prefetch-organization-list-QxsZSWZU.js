@@ -1,0 +1,2 @@
+!function(){try{var e="undefined"!=typeof window?window:"undefined"!=typeof global?global:"undefined"!=typeof globalThis?globalThis:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&(e._posthogChunkIds=e._posthogChunkIds||{},e._posthogChunkIds[n]="019de4e7-209c-7b42-a8d6-606ac97b79f9")}catch(e){}}();import{C as e}from"./react-BVAPS1vU.js";import{t}from"./utils-1FpGMety.js";function n(){return e(t),null}export{n as OrganizationSwitcherPrefetch};
+//# chunkId=019de4e7-209c-7b42-a8d6-606ac97b79f9

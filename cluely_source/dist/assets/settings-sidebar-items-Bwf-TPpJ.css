@@ -1,0 +1,1 @@
+@keyframes cluely-text-shimmer{0%{background-position:-180% 0}to{background-position:180% 0}}.cluely-text-shimmer{color:#0000;background:linear-gradient(90deg,#a1a1aa 20%,#f4f4f5 50%,#a1a1aa 80%) 0 0/220% 100%;-webkit-background-clip:text;background-clip:text;animation:1.6s linear infinite cluely-text-shimmer}

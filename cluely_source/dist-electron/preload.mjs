@@ -1,0 +1,1 @@
+let e=require(`electron`);e.contextBridge.exposeInMainWorld(`ipcRenderer`,{on(t,n){let r=(e,t)=>{n(t)};return e.ipcRenderer.on(t,r),()=>{e.ipcRenderer.off(t,r)}},send(t,n){e.ipcRenderer.send(t,n)},invoke(t,...n){return e.ipcRenderer.invoke(t,...n)}}),e.contextBridge.exposeInMainWorld(`platform`,process.platform);

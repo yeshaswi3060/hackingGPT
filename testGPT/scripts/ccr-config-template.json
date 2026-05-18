@@ -1,0 +1,34 @@
+{
+  "LOG": false,
+  "LOG_LEVEL": "info",
+  "CLAUDE_PATH": "",
+  "HOST": "127.0.0.1",
+  "PORT": 3456,
+  "APIKEY": "",
+  "API_TIMEOUT_MS": "600000",
+  "PROXY_URL": "",
+  "transformers": [],
+  "Providers": [
+    {
+      "name": "gemini",
+      "api_base_url": "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+      "api_key": "__GOOGLE_API_KEY__",
+      "models": [
+        "gemini-2.0-flash",
+        "gemini-1.5-flash"
+      ]
+    }
+  ],
+  "StatusLine": {
+    "enabled": false
+  },
+  "Router": {
+    "default": "gemini,gemini-2.0-flash",
+    "background": "gemini,gemini-2.0-flash",
+    "think": "gemini,gemini-2.0-flash",
+    "longContext": "gemini,gemini-1.5-flash",
+    "longContextThreshold": 60000,
+    "webSearch": "gemini,gemini-2.0-flash"
+  },
+  "CUSTOM_ROUTER_PATH": ""
+}

@@ -1,0 +1,231 @@
+# ============================================================================
+# Python
+# ============================================================================
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Distribution / packaging
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# ============================================================================
+# Virtual Environments
+# ============================================================================
+
+.venv/
+venv/
+ENV/
+env/
+env.bak/
+venv.bak/
+
+# ============================================================================
+# Poetry / PDM
+# ============================================================================
+
+poetry.lock
+.pdm.toml
+.pdm-build/
+
+# ============================================================================
+# Testing
+# ============================================================================
+
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+cover/
+
+# ============================================================================
+# Type Checking & Linting
+# ============================================================================
+
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pytype/
+.pyre/
+.ruff_cache/
+cython_debug/
+
+# ============================================================================
+# IDEs & Editors
+# ============================================================================
+
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.aider*
+
+# ============================================================================
+# OS Files
+# ============================================================================
+
+.DS_Store
+Thumbs.db
+
+# ============================================================================
+# Project Specific
+# ============================================================================
+
+# Runtime workspace - NEVER commit (contains VPN configs, exploits, sensitive data)
+workspace/*
+!workspace/.gitkeep
+
+# VPN configuration files (extra safety - never commit these anywhere)
+*.ovpn
+
+# Logs
+*.log
+logs/
+
+# Environment
+.env
+.env.auth
+
+# Agent runs
+agent_runs/
+
+# Legacy project files (when running from legacy/)
+config/chatgpt_config.py
+outputs/
+test_history/
+archive/
+
+# ============================================================================
+# Local Docker Overrides (for regional mirrors, etc.)
+# ============================================================================
+
+Dockerfile.vpn
+docker-compose.override.yml
+vpn-mode.sh
+
+# ============================================================================
+# Documentation
+# ============================================================================
+
+docs/_build/
+/site
+
+# ============================================================================
+# Jupyter
+# ============================================================================
+
+.ipynb_checkpoints
+profile_default/
+ipython_config.py
+
+# ============================================================================
+# Ad-hoc scan/research scripts (added during field use, not part of project)
+# ============================================================================
+decode_token.py
+deep_scan_payloads.py
+dump_log.py
+extract_payloads.py
+find_secrets.py
+hex_digger.py
+libapp_url_discovery.py
+patch_hijack.py
+patch_v17.py
+patch_v4.py
+scan_binary.py
+verify_tenant.py
+apk_suite.py
+private/
+tmp_extract/
+gobuster_windows*.zip
+allcloths_vuln_nmap.txt
+bookeasy.js
+dpsrkp_extractor.py
+dpsrkp_services.txt
+extract_js.py
+flag_found.txt
+ftp_script.txt
+headers.txt
+homepage*.html
+homepage.txt
+malyam.html
+index.html
+keycloak_brute.py
+list_models.py
+model_list*.txt
+nmap*.txt
+nmap_full
+nmap_out.txt
+nmap_scan.xml
+open_ports.txt
+port_scan.py
+response_404.txt
+scan.py
+scan_output.txt
+scan_secrets.py
+sqlmap/
+subdomain_leak_scan.py
+test.py
+test.txt
+verify_search.py
+web_scan.py
+xmlrpc_*.py
+
+# Extra untracked web junk
+testinggpt/interface/web/aws.py
+testinggpt/interface/web/check_files.txt
+testinggpt/interface/web/common.*.js
+testinggpt/interface/web/dir_brute.py
+testinggpt/interface/web/entropy_scan.py
+testinggpt/interface/web/extract_api.py
+testinggpt/interface/web/extract_urls.py
+testinggpt/interface/web/findapi.py
+testinggpt/interface/web/grep_api.py
+testinggpt/interface/web/hello.py
+testinggpt/interface/web/jsfile.txt
+testinggpt/interface/web/logo.png
+testinggpt/interface/web/look_for_secrets.py
+testinggpt/interface/web/main.js
+testinggpt/interface/web/pattern.py
+testinggpt/interface/web/polyfills.*.js
+testinggpt/interface/web/readjs*.py
+testinggpt/interface/web/runtime.*.js
+testinggpt/interface/web/scan*.cjs
+testinggpt/interface/web/scan*.js
+testinggpt/interface/web/scan*.py
+testinggpt/interface/web/search*.py
+testinggpt/interface/web/sensitive_scan.py
+testinggpt/interface/web/test*.py
+testinggpt/interface/web/test*.txt
+testinggpt/interface/web/testslash.py

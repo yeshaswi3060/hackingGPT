@@ -1,0 +1,4 @@
+provider: s3
+endpoint: https://20873b71e7c62fabf611d1ee3eb26fd0.r2.cloudflarestorage.com
+bucket: cluely-v2-desktop-releases-prod
+updaterCacheDirName: cluely-v2-updater

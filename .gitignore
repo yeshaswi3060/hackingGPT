@@ -1,0 +1,115 @@
+# ============================================================================
+# OS Files
+# ============================================================================
+.DS_Store
+Thumbs.db
+
+# ============================================================================
+# Environments
+# ============================================================================
+.env
+venv/
+env/
+node_modules/
+
+# ============================================================================
+# Large Binary / Tool Files
+# ============================================================================
+*.zip
+*.exe
+*.msi
+*.iso
+*.bin
+*.out
+*.app
+*.apk
+frida-server
+frida-server-*
+*.der
+*.pem
+*.jar
+*.wav
+
+# ============================================================================
+# Ignore ALL root-level lab/research/junk — only testGPT is the project
+# ============================================================================
+9a5ba575.0
+ASTROSAGE_EXPLOIT_PROOF.txt
+ASTROSAGE_P1_REPORT.md
+Android_Hacking_Lab/
+GOD_TIER_RE_LAB/
+adb_ghost_lab/
+all_endpoints_raw.txt
+all_endpoints_unique.txt
+analyze_failed_payment.py
+android9_translation/
+astrosage_credentials.txt
+astrosage_exports.xml
+astrosage_extracted_secrets.json
+astrosage_extracted_secrets_v2.json
+astrosage_final_credentials.txt
+astrosage_unpacked/
+astrosage_unpin.js
+backend_context.txt
+backend_probe_v3.txt
+binary_image_lab/
+crash_log.txt
+debug_harvest.ps1
+discover_jsi_and_urls.py
+download_frida.py
+dump_order.py
+exploit_astrosage_p1.py
+extract_all_keys.py
+extract_credentials.py
+extract_jsi.py
+extract_urls.py
+failed_payment_analysis.txt
+final_secret_scan.py
+find_jsi_reliable.py
+ghost_link/
+global_inch_audit/
+graha_guru/
+graha_guru_security_audit_full.txt
+history_summary.txt
+horocosmo/
+httptoolkit_unpin.js
+jsi_files.txt
+jsi_registrations.txt
+master_unpinner.js
+melooha/
+melooha_credentials.txt
+melooha_security_audit_full.txt
+mobile_exploit_lab/
+ngrok_output.json
+optimizedImage_url.txt
+order_dump.txt
+order_dump2.txt
+parse_burp.py
+paymnet_traffic.xml
+pixel_perfect_floorplan.png
+scan_astrosage_secrets.py
+scan_astrosage_secrets_rigorous.py
+scanner_sweep.wav
+squareyard.xml
+squareyard2.xml
+summarize_history.py
+system_extracted/
+test_baseline.png
+test_currency_manipulation.py
+test_key.py
+test_payment_tampering.py
+test_payment_tampering_advanced.py
+test_payment_verification_bypass.py
+urls.txt
+urls2.txt
+vastu_wheels/
+vm9_build.prop
+vm_build.prop
+vulnerabilities_summary.txt
+walkthrough_list.txt
+walkthrough_list_utf8.txt
+weaponized_floorplan.png
+webshell_lab/
+webshell_lab_v2/
+workspace/
+C

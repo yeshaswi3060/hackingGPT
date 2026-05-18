@@ -1,0 +1,1 @@
+import{t as e}from"./shellscript-BzuQLmwm.js";export{e as default};

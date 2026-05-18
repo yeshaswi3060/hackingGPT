@@ -1,0 +1,4 @@
+DNS Enumeration Results — uidai.gov.in
+============================================================
+
+Active Subdomains:

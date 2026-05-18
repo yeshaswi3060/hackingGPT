@@ -1,0 +1,156 @@
+
+
+[UIDAI_API_URL]
+  https://backofficestage.uidai.gov.in
+  https://tathyamndc.uidai.gov.in
+
+
+[API_PATH]
+  /api/ackSlip
+  /appointment/applicant-details/v1
+  /appointment/camp/v1
+  /appointment/home/v1
+  /appointment/online/v1
+  /appointment/unified/v1
+  /audioCaptchaService/api/captcha/v3
+  /authenticate
+  /centre-appointment/update
+  /centre-appointment/update-foreign
+  /home-appointment/update
+  /unifiedAppAuthService/api
+  /update/
+  /v2/generate/generic/otp
+  /v3/generate/otp/email
+
+
+[RAZORPAY_LIVE]
+  rzp_live_OJAxlTzJErna95
+
+
+[RAZORPAY_TEST]
+  rzp_test_YaF84ZL2G2yQfx
+
+
+[OTP_ENDPOINT]
+  )
+if(v.x==null)v.hY()
+if(window.sessionStorage.getItem(u)===
+  )
+if(v.z==null)v.hY()
+if(window.sessionStorage.getItem(u)===
+  )
+k.toString
+l.a.sbz(0,k)
+k=m.c.f
+l=window.sessionStorage.getItem(
+  )
+l.toString
+k.b.sbz(0,l)
+m=m.c.f
+l=window.sessionStorage.getItem(
+  )
+l=m.c.f
+k=window.sessionStorage.getItem(
+  )
+m.c.f.w=window.sessionStorage.getItem(
+  )
+o.didCreateEngineInitializer(q.aH2())
+case 3:return A.o(null,r)}})
+return A.p($async$b1o,r)},
+ajN:function ajN(a){this.b=a},
+b1p:function b1p(){},
+b1q:function b1q(a,b){this.a=a
+this.b=b},
+al5:function al5(){},
+al6:function al6(a){this.a=a},
+atw:function atw(){},
+atz:function atz(a){this.a=a},
+aty:function aty(a,b){this.a=a
+this.b=b},
+atx:function atx(a,b){this.a=a
+this.b=b},
+TL:function TL(){},
+TM:function TM(){},
+ajQ:function ajQ(a){this.a=a},
+ajR:function ajR(a){this.a=a},
+TP:function TP(){},
+rE:function rE(){},
+a11:function a11(){},
+a7V:function a7V(){},
+b4U(a,b,c,d,e,f){return new A.ajG(d,b,f,a,c)},
+bAt(a){switch(a.a){case 2:$.b7K=$.blr()
+break
+case 0:$.b7K=$.blt()
+break
+case 1:$.b7K=$.b9y()
+break}},
+ajG:function ajG(a,b,c,d,e){var _=this
+_.a=a
+_.b=b
+_.d=c
+_.e=d
+_.f=e},
+ard:function ard(a,b){this.a=a
+this.b=b},
+b1f(a){return B.b.jo(B.a3a,new A.b1g(a),new A.b1h())},
+m_:function m_(a,b){this.a=a
+this.b=b},
+b1g:function b1g(a){this.a=a},
+b1h:function b1h(){},
+kt:function kt(a,b){this.a=a
+this.b=b},
+rN:function rN(a,b){this.a=a
+this.b=b},
+m8:function m8(a,b,c){this.c=a
+this.a=b
+this.b=c},
+fs:function fs(a,b,c){this.c=a
+this.a=b
+this.b=c},
+Zw:function Zw(a,b){this.a=a
+this.b=b},
+tM:function tM(a,b,c){this.c=a
+this.a=b
+this.b=c},
+x2:function x2(a,b){this.a=a
+this.b=b},
+aEZ:function aEZ(a,b){this.a=a
+this.b=b},
+eY:function eY(a,b){this.a=a
+this.b=b},
+xW:function xW(a,b,c,d){var _=this
+_.c=a
+_.d=b
+_.a=c
+_.b=d},
+Sz(a){var s=0,r=A.q(t.H)
+var $async$Sz=A.m(function(b,c){if(b===1)return A.n(c,r)
+while(true)switch(s){case 0:s=2
+return A.k(A.b3g(),$async$Sz)
+case 2:$.aE.k2$.push(new A.b33(a))
+return A.o(null,r)}})
+return A.p($async$Sz,r)},
+b33:function b33(a){this.a=a},
+b3j(){var s=0,r=A.q(t.H),q,p,o,n,m,l,k
+var $async$b3j=A.m(function(a,b){if(a===1)return A.n(b,r)
+while(true)switch(s){case 0:A.bAt(B.Vg)
+s=2
+return A.k(A.b2T(),$async$b3j)
+case 2:A.mP(B.UC,new A.b3m())
+if(window.sessionStorage.getItem(
+  )
+o=window.sessionStorage
+o.toString
+B.dh.G(o,
+  ))
+else u.x=!0
+if($.oX)$.e3=Q.yH($.e3)
+if(window.sessionStorage.getItem(t)===
+  ))
+p=q.ga7K()
+o=t.z
+n=q.a8c(0,A.F(t.N,o))
+m=$.P()
+l=m.c
+l===$&&A.b()
+l.f.r=window.sessionStorage.getItem(

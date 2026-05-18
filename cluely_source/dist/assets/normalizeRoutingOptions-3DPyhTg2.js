@@ -1,0 +1,2 @@
+!function(){try{var e="undefined"!=typeof window?window:"undefined"!=typeof global?global:"undefined"!=typeof globalThis?globalThis:"undefined"!=typeof self?self:{},n=(new e.Error).stack;n&&(e._posthogChunkIds=e._posthogChunkIds||{},e._posthogChunkIds[n]="019de4e7-2082-7ea1-a3f8-e562e88eb43a")}catch(e){}}();import{G as e}from"./react-BVAPS1vU.js";var t=({routing:t,path:n})=>n&&!t?{routing:`path`,path:n}:t!==`path`&&n?e(t):{routing:t,path:n};export{t};
+//# chunkId=019de4e7-2082-7ea1-a3f8-e562e88eb43a

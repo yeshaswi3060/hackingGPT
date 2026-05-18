@@ -1,0 +1,21 @@
+UIDAI HTTP Method Test Results
+============================================================
+
+Target: https://uidai.gov.in/en/
+  OPTIONS: {'status': 200, 'allow': 'Not disclosed'}
+  TRACE: 405
+  PUT: 200
+  DELETE: 200
+
+Target: https://myaadhaar.uidai.gov.in/
+  OPTIONS: {'status': 200, 'allow': 'Not disclosed'}
+  TRACE: 200
+  PUT: 200
+  DELETE: 200
+
+Target: https://bookappointment.uidai.gov.in/
+  OPTIONS: {'status': 200, 'allow': 'Not disclosed'}
+  TRACE: 200
+  PUT: 200
+  DELETE: 200
+

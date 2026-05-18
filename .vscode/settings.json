@@ -1,0 +1,7 @@
+{
+    "python.defaultInterpreterPath": "${workspaceFolder}/testGPT/.venv/bin/python",
+    "python.analysis.extraPaths": [
+        "${workspaceFolder}/testGPT"
+    ],
+    "git.ignoreLimitWarning": true
+}

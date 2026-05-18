@@ -1,0 +1,1365 @@
+KALI LINUX BEGINNER PRACTICAL TEACHING GUIDE
+For classroom teaching with students in a safe, authorized lab environment
+
+================================================================
+1. PURPOSE OF THIS SESSION
+================================================================
+
+This guide is made so you can directly read, explain, demonstrate, and teach students practical basics on Kali Linux.
+
+Main goal:
+- Introduce Kali Linux properly
+- Teach Linux terminal basics
+- Teach networking basics
+- Teach safe beginner security tools
+- Show basic commands and explain what each one does
+- Keep everything legal, ethical, and lab-based
+
+Important classroom rule:
+Only practice on systems, VMs, websites, and networks that you own or are authorized to test.
+Do not scan public IPs, random websites, school servers, office systems, or any third-party targets without written permission.
+
+
+================================================================
+2. WHAT TO TELL STUDENTS AT THE START
+================================================================
+
+You can say this:
+
+"Kali Linux is a Debian-based Linux distribution used for cybersecurity learning, security testing, digital forensics, and lab practice. Kali is powerful, but it must only be used in authorized environments. Today we are not learning illegal hacking. We are learning Linux basics, networking, and safe security tools in a lab."
+
+You can also say:
+
+"Do not try tools on random targets. First understand what the tool does, why it is used, and how to read the output."
+
+
+================================================================
+3. IDEAL SESSION FLOW
+================================================================
+
+Recommended 2-hour beginner session:
+
+1. Introduction to Kali Linux
+2. Basic terminal commands
+3. Files and permissions
+4. Networking basics
+5. Nmap practical
+6. Wireshark practical
+7. Netcat or Burp Suite practical
+8. Student tasks
+9. Final recap and questions
+
+
+================================================================
+4. LAB SETUP BEFORE CLASS
+================================================================
+
+Recommended setup:
+- 1 Kali Linux system or VM
+- 1 target lab system or VM under your control
+- Optional: 1 local web app or test site inside your lab
+- Local network or host-only VM network
+
+Safe target examples:
+- Another VM you control
+- Your own Metasploitable-style lab machine
+- A local training web app
+- A private classroom practice VM
+
+Avoid:
+- Random public IP addresses
+- Real business websites
+- Systems not owned by you
+
+
+================================================================
+5. TOPIC 1: BASIC KALI LINUX INTRODUCTION
+================================================================
+
+What to explain:
+- Kali Linux is based on Debian
+- It is used by security learners, admins, incident responders, and testers
+- It includes many pre-installed security tools
+- Tools are not the main skill; understanding systems and networks is the main skill
+
+Important point to tell students:
+"Before using advanced tools, you must know Linux commands, files, permissions, IP addresses, DNS, ports, and services."
+
+
+================================================================
+6. TOPIC 2: TERMINAL BASICS
+================================================================
+
+This is the first practical section. Students should open the terminal.
+
+Command: pwd
+Purpose:
+Shows the present working directory.
+
+Example:
+pwd
+
+What to say:
+"This tells us where we currently are in the file system."
+
+
+Command: ls
+Purpose:
+Lists files and folders in the current directory.
+
+Example:
+ls
+
+Useful variant:
+ls -la
+
+What to say:
+"ls shows files. ls -la shows more details including hidden files and permissions."
+
+
+Command: cd
+Purpose:
+Changes directory.
+
+Examples:
+cd Desktop
+cd ..
+cd /etc
+
+What to say:
+"cd is used to move from one folder to another. cd .. means go one level back."
+
+
+Command: mkdir
+Purpose:
+Creates a new directory.
+
+Example:
+mkdir kali_practice
+
+What to say:
+"We use mkdir to create a new folder for our work."
+
+
+Command: touch
+Purpose:
+Creates an empty file.
+
+Example:
+touch notes.txt
+
+What to say:
+"touch creates a blank file quickly."
+
+
+Command: cp
+Purpose:
+Copies files.
+
+Example:
+cp notes.txt backup_notes.txt
+
+
+Command: mv
+Purpose:
+Moves or renames files.
+
+Examples:
+mv backup_notes.txt old_notes.txt
+mv old_notes.txt kali_practice/
+
+
+Command: rm
+Purpose:
+Removes files.
+
+Example:
+rm old_file.txt
+
+Classroom note:
+Explain carefully that rm permanently removes files. Use it carefully.
+
+
+Command: clear
+Purpose:
+Clears the terminal screen.
+
+Example:
+clear
+
+
+Command: history
+Purpose:
+Shows command history.
+
+Example:
+history
+
+
+================================================================
+7. PRACTICAL DEMO FOR BASIC COMMANDS
+================================================================
+
+Run these commands one by one:
+
+pwd
+ls
+mkdir kali_practice
+cd kali_practice
+touch notes.txt
+ls -la
+echo "This is Kali Linux practice" > notes.txt
+cat notes.txt
+cp notes.txt notes_backup.txt
+mv notes_backup.txt final_notes.txt
+ls -la
+
+Explain:
+- We checked our location
+- Created a folder
+- Created a file
+- Wrote content to the file
+- Read the file
+- Copied it
+- Renamed it
+
+
+================================================================
+8. TOPIC 3: VIEWING AND EDITING FILES
+================================================================
+
+Command: cat
+Purpose:
+Displays file content.
+
+Example:
+cat notes.txt
+
+
+Command: less
+Purpose:
+Views long files page by page.
+
+Example:
+less /etc/services
+
+What to say:
+"Use less when a file is too large for easy viewing."
+
+
+Command: nano
+Purpose:
+Simple terminal text editor.
+
+Example:
+nano notes.txt
+
+What to say:
+"nano is beginner-friendly and useful for editing configuration files and notes."
+
+
+================================================================
+9. TOPIC 4: USERS, ROOT, SUDO, AND PERMISSIONS
+================================================================
+
+Command: whoami
+Purpose:
+Shows the current logged-in user.
+
+Example:
+whoami
+
+
+Command: id
+Purpose:
+Shows user ID and group information.
+
+Example:
+id
+
+
+Command: sudo
+Purpose:
+Runs a command with elevated privileges.
+
+Example:
+sudo apt update
+
+What to say:
+"Some administrative tasks need root privileges. sudo temporarily gives that privilege."
+
+
+Command: chmod
+Purpose:
+Changes file permissions.
+
+Example:
+chmod 644 notes.txt
+
+Basic explanation:
+- 4 = read
+- 2 = write
+- 1 = execute
+
+Examples:
+- 7 = read + write + execute
+- 6 = read + write
+- 5 = read + execute
+- 4 = read only
+
+
+Command: chown
+Purpose:
+Changes file ownership.
+
+Example:
+sudo chown root:root notes.txt
+
+What to say:
+"Permissions control who can read, write, or execute a file."
+
+
+================================================================
+10. SIMPLE PERMISSIONS PRACTICAL
+================================================================
+
+Commands:
+touch script.sh
+ls -l script.sh
+chmod +x script.sh
+ls -l script.sh
+
+What to explain:
+- Before chmod +x, the file is not executable
+- After chmod +x, execute permission is added
+
+Optional extra:
+echo 'echo Hello Students' > script.sh
+chmod +x script.sh
+./script.sh
+
+
+================================================================
+11. TOPIC 5: PACKAGE MANAGEMENT
+================================================================
+
+Command: sudo apt update
+Purpose:
+Updates package list information.
+
+Command: sudo apt upgrade
+Purpose:
+Upgrades installed packages.
+
+Command: sudo apt install <package_name>
+Purpose:
+Installs a package.
+
+Example:
+sudo apt install htop
+
+Command: sudo apt remove <package_name>
+Purpose:
+Removes a package.
+
+Example:
+sudo apt remove htop
+
+What to say:
+"Kali is Linux, so software management is done through the package manager."
+
+
+================================================================
+12. TOPIC 6: SYSTEM INFORMATION COMMANDS
+================================================================
+
+Command: uname -a
+Purpose:
+Shows kernel and system information.
+
+Command: hostname
+Purpose:
+Shows system hostname.
+
+Command: df -h
+Purpose:
+Shows disk usage in human-readable format.
+
+Command: free -h
+Purpose:
+Shows memory usage.
+
+Command: ps aux
+Purpose:
+Shows running processes.
+
+Command: top
+Purpose:
+Shows live process activity.
+
+Optional:
+htop
+
+What to say:
+"These commands help us understand the system itself before using security tools."
+
+
+================================================================
+13. TOPIC 7: NETWORKING BASICS
+================================================================
+
+This topic is very important. Teach this before Nmap.
+
+Explain these basic words:
+- IP address: identity of a device on the network
+- Gateway: device that routes traffic to other networks
+- DNS: converts domain names into IP addresses
+- Port: logical communication endpoint
+- Service: program listening on a port
+
+Good examples:
+- HTTP usually works on port 80
+- HTTPS usually works on port 443
+- SSH commonly works on port 22
+
+
+================================================================
+14. NETWORKING COMMANDS TO TEACH
+================================================================
+
+Command: ip a
+Purpose:
+Shows IP addresses and interfaces.
+
+Example:
+ip a
+
+What to say:
+"This shows network interfaces like eth0 or wlan0 and their IP addresses."
+
+
+Command: ip route
+Purpose:
+Shows routing table and default gateway.
+
+Example:
+ip route
+
+
+Command: ping
+Purpose:
+Tests connectivity to another host.
+
+Examples:
+ping 8.8.8.8
+ping google.com
+
+What to say:
+"Ping checks whether a host is reachable and measures response time."
+
+
+Command: ss -tuln
+Purpose:
+Shows listening ports and active sockets.
+
+Example:
+ss -tuln
+
+What to say:
+"This helps us see which services are listening on this machine."
+
+
+Command: nslookup
+Purpose:
+Looks up DNS records.
+
+Example:
+nslookup google.com
+
+
+Command: traceroute
+Purpose:
+Shows the path packets take to a destination.
+
+Example:
+traceroute google.com
+
+Note:
+If traceroute is not installed, explain it conceptually or install it in a controlled lab.
+
+
+================================================================
+15. SIMPLE NETWORKING PRACTICAL
+================================================================
+
+Commands:
+ip a
+ip route
+ping -c 4 8.8.8.8
+ping -c 4 google.com
+ss -tuln
+nslookup google.com
+
+What to explain:
+- Which interface has the IP address
+- What the default gateway is
+- Difference between pinging an IP and pinging a domain name
+- How DNS helps resolve names
+- What listening ports mean
+
+
+================================================================
+16. TOPIC 8: NMAP
+================================================================
+
+Tool name:
+Nmap
+
+Purpose:
+Network discovery and port scanning.
+
+What to tell students:
+"Nmap helps us discover hosts, open ports, and running services in our own lab environment."
+
+Important rule:
+Only scan lab systems you own or are allowed to test.
+
+Basic syntax:
+nmap [scan_type] [options] <target>
+
+How to explain syntax:
+- nmap = tool name
+- [scan_type] = what kind of scan you want to do
+- [options] = extra flags for more details
+- <target> = IP address, hostname, or lab subnet
+
+Common scan elements:
+- <target_ip> means one host such as 192.168.1.10
+- <subnet> means a range such as 192.168.1.0/24
+- -p means choose ports manually
+- -sV means detect service versions
+- -sn means host discovery only
+
+Teacher note:
+Tell students that syntax matters. A small option change changes the behavior of the tool.
+
+
+================================================================
+17. NMAP BASIC COMMANDS
+================================================================
+
+1. Basic scan
+nmap 192.168.1.10
+
+Purpose:
+Scans common ports on the target.
+
+
+2. Service version scan
+nmap -sV 192.168.1.10
+
+Purpose:
+Attempts to identify service versions.
+
+
+3. Scan multiple hosts in a small lab
+nmap 192.168.1.0/24
+
+Purpose:
+Finds live hosts in a local subnet.
+
+Teaching note:
+Use this only if the whole subnet is your private lab.
+
+
+4. Only host discovery
+nmap -sn 192.168.1.0/24
+
+Purpose:
+Checks which hosts are up without full port scanning.
+
+
+5. Scan specific ports
+nmap -p 22,80,443 192.168.1.10
+
+Purpose:
+Scans selected ports only.
+
+
+6. Aggressive version and script detection in your own lab only
+nmap -A 192.168.1.10
+
+Purpose:
+Performs OS detection, version detection, script scanning, and traceroute.
+
+Teacher note:
+Use this only as a demo in a private lab. Explain that it is noisier and more detailed.
+
+
+7. Save output to a text file
+nmap -sV 192.168.1.10 -oN nmap_results.txt
+
+Purpose:
+Saves scan output in normal text format for later review.
+
+
+Important option meanings:
+- -sV = service version detection
+- -sn = ping scan or host discovery only
+- -p = select port numbers
+- -A = advanced detection
+- -oN = save output to normal text file
+
+
+================================================================
+18. HOW TO EXPLAIN NMAP OUTPUT
+================================================================
+
+When students see output, explain these fields:
+- Host is up
+- Open ports
+- Service names
+- Version information if available
+
+Example explanation:
+"If port 22 is open, that often means SSH is running. If port 80 is open, that usually means a web server is running."
+
+Tell students:
+"Open does not always mean vulnerable. It simply means a service is available."
+
+
+================================================================
+19. NMAP CLASSROOM PRACTICAL
+================================================================
+
+Demo commands:
+nmap <target_ip>
+nmap -sV <target_ip>
+nmap -p 22,80,443 <target_ip>
+nmap -sV <target_ip> -oN nmap_results.txt
+
+Replace <target_ip> with your lab machine IP.
+
+Questions to ask students:
+- Which ports are open?
+- Which services are running?
+- What is the difference between a port and a service?
+
+
+================================================================
+20. TOPIC 9: WIRESHARK
+================================================================
+
+Tool name:
+Wireshark
+
+Purpose:
+Packet capture and network traffic analysis.
+
+What to say:
+"Wireshark helps us see what is happening on the network. It is one of the best tools for understanding packets, protocols, and traffic flow."
+
+Basic workflow syntax:
+1. Open Wireshark
+2. Select interface
+3. Start capture
+4. Generate traffic
+5. Apply display filter
+6. Inspect packet details
+
+Important difference:
+- Capture filter = limits packets before capture
+- Display filter = filters packets after capture
+
+Good beginner display filters:
+- icmp
+- dns
+- tcp
+- http
+- arp
+
+Simple capture filter examples:
+- host 8.8.8.8
+- port 53
+- icmp
+
+What to say:
+"Display filters are easier for beginners. Start with them first."
+
+
+================================================================
+21. HOW TO TEACH WIRESHARK
+================================================================
+
+Step 1:
+Open Wireshark.
+
+Step 2:
+Select the active network interface.
+
+Step 3:
+Start capture.
+
+Step 4:
+Generate some traffic from the terminal.
+
+Examples:
+ping google.com
+nslookup google.com
+
+Step 5:
+Use display filters.
+
+Useful filters:
+icmp
+dns
+http
+tcp
+
+What each filter means:
+- icmp = ping traffic
+- dns = domain name lookups
+- http = web traffic
+- tcp = TCP packets
+
+
+================================================================
+22. WIRESHARK PRACTICAL DEMO
+================================================================
+
+Demo:
+1. Start capture on the active interface
+2. Run ping google.com in terminal
+3. Apply filter: icmp
+4. Show echo request and echo reply
+5. Run nslookup google.com
+6. Apply filter: dns
+7. Show the DNS query and response
+
+What to explain:
+- Source IP
+- Destination IP
+- Protocol
+- Packet length
+- Request and response concept
+
+Simple line you can say:
+"In Wireshark we are not guessing; we are observing actual traffic."
+
+Extra things to point at in one packet:
+- Source MAC address
+- Source IP address
+- Destination IP address
+- Protocol field
+- Packet size
+- Request or reply pattern
+
+
+================================================================
+23. TOPIC 10: NETCAT
+================================================================
+
+Tool name:
+Netcat
+
+Purpose:
+Basic networking utility for reading from and writing to network connections.
+
+Safe beginner use:
+- Test whether a port is reachable
+- Send simple text between two lab machines
+- Understand client-server communication
+
+What to say:
+"Netcat is simple but powerful. We will only use it for basic connection testing in our own lab."
+
+Basic syntax:
+nc [options] <target> <port>
+
+How to explain syntax:
+- nc = netcat command
+- [options] = listening or verbose mode and other behaviors
+- <target> = the host you want to connect to
+- <port> = the port number
+
+Common option meanings:
+- -l = listen mode
+- -v = verbose output
+- -n = do not resolve DNS names
+- -p = local port
+
+
+================================================================
+24. NETCAT BASIC COMMANDS
+================================================================
+
+1. Connect to a host and port
+nc 192.168.1.10 80
+
+Purpose:
+Tries to connect to port 80 on the target.
+
+
+2. Listen on a port on one lab machine
+nc -lvnp 4444
+
+Purpose:
+Listens for an incoming connection.
+
+
+3. Connect from another lab machine
+nc <listener_ip> 4444
+
+Purpose:
+Connects to the listening machine.
+
+Then type a message and press Enter.
+
+What to explain:
+"This shows direct communication between two hosts."
+
+
+4. Check if a web port is reachable
+nc -vz 192.168.1.10 80
+
+Purpose:
+Tests whether the target port is open.
+
+Option note:
+- -z means zero-I/O scan mode
+- -v means show more output
+
+
+================================================================
+25. NETCAT CLASSROOM PRACTICAL
+================================================================
+
+Machine 1:
+nc -lvnp 4444
+
+Machine 2:
+nc <machine1_ip> 4444
+
+Type:
+Hello students
+
+Explain:
+- One side is listening
+- One side is connecting
+- This is the basic idea behind many network services
+
+
+================================================================
+26. TOPIC 11: BURP SUITE COMMUNITY
+================================================================
+
+Tool name:
+Burp Suite Community Edition
+
+Purpose:
+Understanding HTTP and HTTPS requests and responses for your own lab web app or test site.
+
+Safe teaching use:
+- Intercept your own browser requests
+- View headers
+- See GET and POST requests
+- Understand how web traffic works
+
+Do not teach unauthorized use on live public websites.
+
+Basic workflow syntax:
+Browser -> Proxy -> Burp -> Server -> Response back to browser
+
+Main Burp sections to show:
+- Proxy
+- HTTP history
+- Repeater
+- Target
+
+What to explain:
+- Proxy lets us intercept traffic
+- HTTP history shows past requests
+- Repeater lets us resend a request in a safe lab
+- Target shows hosts and site structure
+
+
+================================================================
+27. HOW TO TEACH BURP SUITE
+================================================================
+
+Simple classroom flow:
+
+1. Open Burp Suite
+2. Go to Proxy
+3. Turn Intercept on
+4. Configure browser to use Burp proxy if needed
+5. Open your lab web application
+6. Capture one request
+7. Explain method, URL, headers, and parameters
+
+Important words to explain:
+- GET request
+- POST request
+- Header
+- Cookie
+- Response
+- Status code
+- Parameter
+- Body or payload
+- Content-Type
+
+What to say:
+"Burp Suite helps us understand how web requests move between browser and server."
+
+What to point out in one request:
+- Request method
+- Path
+- Host header
+- User-Agent
+- Cookies
+- Query string or form data
+
+What to point out in one response:
+- Status code such as 200 or 302
+- Response headers
+- Content-Type
+- Response body
+
+
+================================================================
+28. SAFE BURP DEMO IDEAS
+================================================================
+
+Show students:
+- Visiting a page in your lab app
+- Intercepting a GET request
+- Logging in to your own demo app and seeing a POST request
+- Viewing response headers
+
+Do not turn the lesson into attack training.
+Keep it focused on observation and understanding.
+
+
+================================================================
+29. TOPIC 12: TCPDUMP
+================================================================
+
+Tool name:
+tcpdump
+
+Purpose:
+Command-line packet capture tool. Very useful when you want packet analysis from the terminal without opening Wireshark.
+
+What to say:
+"tcpdump is like a terminal-based packet sniffer. It is good for servers, SSH sessions, and quick packet checks."
+
+Basic syntax:
+tcpdump [options] [filter_expression]
+
+How to explain syntax:
+- tcpdump = tool name
+- [options] = interface, count, or display controls
+- [filter_expression] = what traffic to capture
+
+Common option meanings:
+- -i = choose interface
+- -n = do not resolve names
+- -c = capture only a fixed number of packets
+
+Beginner commands:
+tcpdump -i eth0
+tcpdump -i eth0 icmp
+tcpdump -i eth0 -n port 53
+tcpdump -i eth0 -c 10
+
+What to explain:
+- interface name
+- source and destination
+- protocol
+- why -n makes output faster and cleaner
+
+Classroom practical:
+1. Run tcpdump -i eth0 icmp
+2. On another terminal run ping google.com
+3. Show how echo request and echo reply appear
+
+
+================================================================
+30. TOPIC 13: NIKTO
+================================================================
+
+Tool name:
+Nikto
+
+Purpose:
+Basic web server scanner for checking common findings on your own lab web server.
+
+Important rule:
+Use only on lab web servers you own or are allowed to test.
+
+Basic syntax:
+nikto -h <target>
+
+Common option meanings:
+- -h = target host
+- -p = port number
+- -o = output file
+
+Beginner examples:
+nikto -h http://192.168.1.20
+nikto -h http://192.168.1.20 -p 8080
+nikto -h http://192.168.1.20 -o nikto_report.txt
+
+What to say:
+"Nikto checks for common web server issues and misconfigurations. For beginners, the goal is to understand what kind of information such a scanner reports."
+
+What to explain in output:
+- server banner
+- interesting files
+- outdated components
+- configuration observations
+
+Teacher note:
+Do not present this as a magic vulnerability tool. Present it as a first-pass information tool.
+
+
+================================================================
+31. OPTIONAL TOOL: JOHN THE RIPPER
+================================================================
+
+Only include this if you want a short password-strength demo in a fully controlled environment.
+
+Safe teaching goal:
+- Show why weak passwords are dangerous
+- Explain password hashes
+- Emphasize strong password practice
+
+Keep this high-level and defensive.
+Do not spend much class time here if students are complete beginners.
+
+Basic syntax:
+john [options] <hash_file>
+
+Very simple example in a lab:
+john hashes.txt
+
+What to say:
+"The point of this demo is not attack practice. The point is to show why weak passwords are unsafe."
+
+
+================================================================
+32. OPTIONAL TOOL: GOBUSTER
+================================================================
+
+Only use on your own lab web application.
+
+Purpose:
+Shows how hidden directories or files may be discovered on a web server.
+
+Very basic example for your own lab:
+gobuster dir -u http://<lab-site> -w /usr/share/wordlists/dirb/common.txt
+
+What to say:
+"This tests possible paths from a wordlist against a web server in our lab."
+
+Important note:
+Use only on your own training site. Do not use on public websites.
+
+Basic syntax:
+gobuster dir -u <url> -w <wordlist>
+
+How to explain syntax:
+- dir = directory brute-force mode
+- -u = target URL
+- -w = wordlist path
+
+More safe examples:
+gobuster dir -u http://192.168.1.20 -w /usr/share/wordlists/dirb/common.txt
+gobuster dir -u http://192.168.1.20 -w /usr/share/wordlists/dirb/common.txt -x php,txt,html
+
+Option note:
+- -x adds file extensions to test
+
+
+================================================================
+33. OPTIONAL TOOL: WHATWEB
+================================================================
+
+Tool name:
+WhatWeb
+
+Purpose:
+Fingerprinting websites and identifying technologies on your own lab web application.
+
+Basic syntax:
+whatweb <target_url>
+
+Beginner examples:
+whatweb http://192.168.1.20
+whatweb http://labsite.local
+
+What to explain:
+- server information
+- CMS or framework hints
+- page technologies
+- why fingerprinting helps during reconnaissance in a legal lab
+
+What to say:
+"WhatWeb gives a quick technology overview. It helps students understand that websites often reveal useful information through headers and page content."
+
+
+================================================================
+34. WHAT TO AVOID IN A BEGINNER CLASS
+================================================================
+
+Avoid teaching these in a reckless or advanced way:
+- Exploitation frameworks as the main topic
+- Random internet scanning
+- Password attacks against real services
+- Malware topics
+- Evasion topics
+- Persistence topics
+
+Why:
+Students first need solid basics, not just flashy tools.
+
+
+================================================================
+35. SIMPLE TEACHING SCRIPT YOU CAN SPEAK
+================================================================
+
+You can say the following:
+
+"Today we will learn Kali Linux in a proper way. First we will understand the terminal, files, users, and permissions. Then we will learn networking basics because without understanding IP addresses, DNS, and ports, security tools do not make much sense. After that we will use a few safe tools like Nmap, Wireshark, Netcat, and Burp Suite in our own lab environment."
+
+"Do not memorize commands only. Understand the purpose of each tool and how to read the output."
+
+
+================================================================
+36. FULL DEMO COMMAND LIST FOR CLASS
+================================================================
+
+Basic Linux:
+pwd
+ls
+ls -la
+mkdir kali_practice
+cd kali_practice
+touch notes.txt
+echo "Kali Linux practice" > notes.txt
+cat notes.txt
+cp notes.txt backup.txt
+mv backup.txt renamed_backup.txt
+history
+
+Permissions:
+whoami
+id
+touch script.sh
+chmod +x script.sh
+ls -l script.sh
+
+System info:
+uname -a
+hostname
+df -h
+free -h
+ps aux
+
+Networking:
+ip a
+ip route
+ping -c 4 8.8.8.8
+ping -c 4 google.com
+ss -tuln
+nslookup google.com
+
+Nmap:
+nmap <target_ip>
+nmap -sV <target_ip>
+nmap -p 22,80,443 <target_ip>
+nmap -A <target_ip>
+nmap -sV <target_ip> -oN nmap_results.txt
+
+Netcat:
+nc -lvnp 4444
+nc <listener_ip> 4444
+nc -vz <target_ip> 80
+
+Wireshark:
+Use GUI
+Filters:
+icmp
+dns
+tcp
+http
+arp
+
+tcpdump:
+tcpdump -i eth0
+tcpdump -i eth0 icmp
+tcpdump -i eth0 -n port 53
+
+Nikto:
+nikto -h http://<target_ip>
+nikto -h http://<target_ip> -o nikto_report.txt
+
+WhatWeb:
+whatweb http://<target_ip>
+
+Burp Suite:
+Use GUI
+Intercept one GET request and one POST request from your own lab app
+
+
+================================================================
+37. QUESTIONS TO ASK STUDENTS DURING CLASS
+================================================================
+
+Ask these simple questions:
+- What is Kali Linux used for?
+- What does pwd show?
+- What is the difference between ls and ls -la?
+- What is sudo used for?
+- What is an IP address?
+- What is a port?
+- What is DNS?
+- What does Nmap show us?
+- What can we observe in Wireshark?
+- What is the purpose of Burp Suite?
+- What is the difference between Wireshark and tcpdump?
+- What type of information can Nikto or WhatWeb show on a lab server?
+
+
+================================================================
+38. PRACTICAL TASKS FOR STUDENTS
+================================================================
+
+Task 1:
+Find your current directory and list all files.
+
+Task 2:
+Create a folder called student_lab and create a file inside it.
+
+Task 3:
+Display your IP address and default gateway.
+
+Task 4:
+Ping a known host and explain the result.
+
+Task 5:
+Use ss -tuln and identify one listening port.
+
+Task 6:
+Run a basic Nmap scan on the lab target and note open ports.
+
+Task 7:
+Open Wireshark, capture ping traffic, and filter it using icmp.
+
+Task 8:
+If using Burp, intercept one request to your lab web app and identify method and path.
+
+Task 9:
+Use tcpdump or Wireshark to capture DNS or ICMP traffic and explain what you see.
+
+Task 10:
+Run WhatWeb or Nikto on your own lab web application and note 2 observations.
+
+
+================================================================
+39. TROUBLESHOOTING NOTES
+================================================================
+
+If ping does not work:
+- Check network connection
+- Check interface with ip a
+- Check gateway with ip route
+
+If a command says permission denied:
+- Check file permissions with ls -l
+- See whether sudo is required
+
+If Nmap shows no results:
+- Confirm target IP
+- Confirm target machine is powered on
+- Confirm both systems are in the same lab network or reachable
+
+If Wireshark shows no packets:
+- Confirm correct interface is selected
+- Generate traffic manually with ping or nslookup
+
+If Burp does not intercept:
+- Check whether intercept is on
+- Check browser proxy settings
+
+If tcpdump shows no traffic:
+- Confirm the correct interface name
+- Generate traffic manually
+- Use ip a to identify the active interface
+
+If Nikto or WhatWeb gives no useful result:
+- Confirm the target URL is reachable
+- Confirm the web server is running
+- Confirm correct port number
+
+
+================================================================
+40. IMPORTANT ETHICS AND LEGAL NOTE
+================================================================
+
+Always end the session with this:
+
+"These tools are for learning, administration, and authorized security testing only. Never use them against systems without permission. Ethical practice and authorization are a core part of cybersecurity."
+
+
+================================================================
+41. SHORT FINAL RECAP FOR CLASS
+================================================================
+
+You can say this at the end:
+
+"Today we learned that Kali Linux is not just about tools. We started with Linux basics, files, permissions, networking, and then used tools like Nmap, Wireshark, Netcat, and Burp Suite to understand systems and traffic in a safe lab environment. The most important habit is to understand what you are doing and to work only in authorized environments."
+
+
+================================================================
+42. BEST BEGINNER TOOL SET TO REMEMBER
+================================================================
+
+For first practical classes, focus on these:
+- Terminal commands
+- ip, ping, ss, nslookup
+- Nmap
+- Wireshark
+- Netcat
+- tcpdump
+- Nikto
+- WhatWeb
+- Burp Suite
+
+This is enough for a strong beginner foundation.
+
+
+================================================================
+43. QUICK 10-MINUTE EMERGENCY VERSION IF CLASS TIME IS SHORT
+================================================================
+
+If you have very little time, teach only this:
+
+1. What Kali Linux is
+2. pwd, ls, cd
+3. whoami and sudo
+4. ip a and ping
+5. nmap <target_ip>
+6. Wireshark with icmp filter
+
+This gives students a quick but proper introduction.
+
+
+================================================================
+44. FINAL TEACHER NOTE
+================================================================
+
+Do not rush to too many tools.
+Teach fewer tools properly.
+Explain purpose, command, output, and safe use.
+If students understand Linux basics and networking basics, they will learn security tools much faster later.

@@ -1,0 +1,55 @@
+tathyamndc.uidai.gov.in API Endpoint Discovery
+============================================================
+
+[401] https://tathyamndc.uidai.gov.in/appointment/v1/
+Reason: AUTH REQUIRED — endpoint exists and requires auth
+Body: {"status":"AuthorizationError","errorCode":"OGS-SEC-001","errorDetail":{"message":"Authorization header missing or invalid","messageLocal":"Authorization header missing or invalid"}}
+
+[401] https://tathyamndc.uidai.gov.in/appointment/v2/
+Reason: AUTH REQUIRED — endpoint exists and requires auth
+Body: {"status":"AuthorizationError","errorCode":"OGS-SEC-001","errorDetail":{"message":"Authorization header missing or invalid","messageLocal":"Authorization header missing or invalid"}}
+
+[401] https://tathyamndc.uidai.gov.in/appointment/create
+Reason: AUTH REQUIRED — endpoint exists and requires auth
+Body: {"status":"AuthorizationError","errorCode":"OGS-SEC-001","errorDetail":{"message":"Authorization header missing or invalid","messageLocal":"Authorization header missing or invalid"}}
+
+[401] https://tathyamndc.uidai.gov.in/appointment/cancel
+Reason: AUTH REQUIRED — endpoint exists and requires auth
+Body: {"status":"AuthorizationError","errorCode":"OGS-SEC-001","errorDetail":{"message":"Authorization header missing or invalid","messageLocal":"Authorization header missing or invalid"}}
+
+[401] https://tathyamndc.uidai.gov.in/appointment/reschedule
+Reason: AUTH REQUIRED — endpoint exists and requires auth
+Body: {"status":"AuthorizationError","errorCode":"OGS-SEC-001","errorDetail":{"message":"Authorization header missing or invalid","messageLocal":"Authorization header missing or invalid"}}
+
+[401] https://tathyamndc.uidai.gov.in/appointment/status
+Reason: AUTH REQUIRED — endpoint exists and requires auth
+Body: {"status":"AuthorizationError","errorCode":"OGS-SEC-001","errorDetail":{"message":"Authorization header missing or invalid","messageLocal":"Authorization header missing or invalid"}}
+
+[401] https://tathyamndc.uidai.gov.in/appointment/list
+Reason: AUTH REQUIRED — endpoint exists and requires auth
+Body: {"status":"AuthorizationError","errorCode":"OGS-SEC-001","errorDetail":{"message":"Authorization header missing or invalid","messageLocal":"Authorization header missing or invalid"}}
+
+[401] https://tathyamndc.uidai.gov.in/appointment/details
+Reason: AUTH REQUIRED — endpoint exists and requires auth
+Body: {"status":"AuthorizationError","errorCode":"OGS-SEC-001","errorDetail":{"message":"Authorization header missing or invalid","messageLocal":"Authorization header missing or invalid"}}
+
+[401] https://tathyamndc.uidai.gov.in/appointment/slots
+Reason: AUTH REQUIRED — endpoint exists and requires auth
+Body: {"status":"AuthorizationError","errorCode":"OGS-SEC-001","errorDetail":{"message":"Authorization header missing or invalid","messageLocal":"Authorization header missing or invalid"}}
+
+[401] https://tathyamndc.uidai.gov.in/appointment/centers
+Reason: AUTH REQUIRED — endpoint exists and requires auth
+Body: {"status":"AuthorizationError","errorCode":"OGS-SEC-001","errorDetail":{"message":"Authorization header missing or invalid","messageLocal":"Authorization header missing or invalid"}}
+
+[401] https://tathyamndc.uidai.gov.in/appointment/search
+Reason: AUTH REQUIRED — endpoint exists and requires auth
+Body: {"status":"AuthorizationError","errorCode":"OGS-SEC-001","errorDetail":{"message":"Authorization header missing or invalid","messageLocal":"Authorization header missing or invalid"}}
+
+[401] https://tathyamndc.uidai.gov.in/appointment/check
+Reason: AUTH REQUIRED — endpoint exists and requires auth
+Body: {"status":"AuthorizationError","errorCode":"OGS-SEC-001","errorDetail":{"message":"Authorization header missing or invalid","messageLocal":"Authorization header missing or invalid"}}
+
+[401] https://tathyamndc.uidai.gov.in/pincode/search
+Reason: AUTH REQUIRED — endpoint exists and requires auth
+Body: {"status":"AuthorizationError","errorCode":"OGS-SEC-001","errorDetail":{"message":"Authorization header missing or invalid","messageLocal":"Authorization header missing or invalid"}}
+
