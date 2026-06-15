@@ -27,6 +27,7 @@ class EventType(Enum):
     TOOL = auto()  # tool start/complete
     FLAG_FOUND = auto()  # flag detected
     FINDING_FOUND = auto()  # vulnerability/finding detected
+    WEBSITE_ANALYSIS_FINDING = auto()  # website analysis finding detected
     COOLDOWN_START = auto()  # rate limit cooldown started
     INPUT_REQUIRED = auto()  # AI is waiting for user input
     GRAPH_UPDATE = auto()  # Attack graph data update (nodes/links)
@@ -134,10 +135,10 @@ class EventBus:
             failed_tool_name: Name of the failing tool if success is False
         """
         data: dict[str, Any] = {
-            "state": state, 
+            "state": state,
             "details": details,
             "last_tool_success": last_tool_success,
-            "failed_tool_name": failed_tool_name
+            "failed_tool_name": failed_tool_name,
         }
         if target is not None:
             data["target"] = target
@@ -145,7 +146,9 @@ class EventBus:
             data["task"] = task
         self.emit(Event(EventType.STATE_CHANGED, data))
 
-    def emit_message(self, text: str, msg_type: str = "info", metadata: dict[str, Any] | None = None) -> None:
+    def emit_message(
+        self, text: str, msg_type: str = "info", metadata: dict[str, Any] | None = None
+    ) -> None:
         """Emit a message event.
 
         Args:
@@ -153,7 +156,9 @@ class EventBus:
             msg_type: Message type (info, success, error, warning)
             metadata: Optional metadata (e.g., cost)
         """
-        self.emit(Event(EventType.MESSAGE, {"text": text, "type": msg_type}, metadata=metadata or {}))
+        self.emit(
+            Event(EventType.MESSAGE, {"text": text, "type": msg_type}, metadata=metadata or {})
+        )
 
     def emit_tool(
         self,
@@ -216,7 +221,7 @@ class EventBus:
 
     def emit_input_required(self, text: str) -> None:
         """Emit an input required event.
-        
+
         Args:
             text: Question or message from the AI
         """
@@ -224,7 +229,7 @@ class EventBus:
 
     def emit_graph_update(self, nodes: list[dict[str, Any]], links: list[dict[str, Any]]) -> None:
         """Emit an attack graph update event.
-        
+
         Args:
             nodes: List of graph nodes {id, label, type, ...}
             links: List of graph links {source, target, type, ...}
@@ -259,11 +264,16 @@ class EventBus:
             output: Script execution output
             success: Whether script ran successfully
         """
-        self.emit(Event(EventType.CODEGEN, {
-            "status": status,
-            "failed_tool": failed_tool,
-            "error_reason": error_reason,
-            "script": script,
-            "output": output,
-            "success": success,
-        }))
+        self.emit(
+            Event(
+                EventType.CODEGEN,
+                {
+                    "status": status,
+                    "failed_tool": failed_tool,
+                    "error_reason": error_reason,
+                    "script": script,
+                    "output": output,
+                    "success": success,
+                },
+            )
+        )

@@ -468,7 +468,7 @@ async def run_web_mode(args: argparse.Namespace) -> None:
         # Note: webbrowser.open(url) might not work in all environments (like headless Docker)
         # but it's fine for desktop users.
         try:
-            webbrowser.open(url)
+            webbrowser.open(url_local)
         except Exception:
             pass
     

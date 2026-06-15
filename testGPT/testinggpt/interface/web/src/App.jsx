@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
+import AgenticIDE from './AgenticIDE'
 
 function App() {
   const [events, setEvents] = useState([])
@@ -12,6 +13,12 @@ function App() {
   const [scanStarted, setScanStarted] = useState(false)
   const [toasts, setToasts] = useState([])
   const [isOverlayVisible, setIsOverlayVisible] = useState(false)
+  
+  // App Modes: 'selection', 'web_test', 'ide'
+  const [appMode, setAppMode] = useState('selection')
+  const [ideInput, setIdeInput] = useState('')
+  const [ideMessages, setIdeMessages] = useState([])
+  const ideChatRef = useRef(null)
   const [hasUserMessaged, setHasUserMessaged] = useState(false)
   const [isThinking, setIsThinking] = useState(false)
   const [cooldownTimer, setCooldownTimer] = useState(0)
@@ -91,6 +98,10 @@ function App() {
   useEffect(() => {
     if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight
   }, [chatEvents])
+
+  useEffect(() => {
+    if (ideChatRef.current) ideChatRef.current.scrollTop = ideChatRef.current.scrollHeight
+  }, [ideMessages, logEvents])
 
   useEffect(() => {
     fetch('/api/initial-settings')
@@ -979,6 +990,61 @@ function App() {
       </div>
     </div>
   )
+
+  if (appMode === 'ide') {
+    return <AgenticIDE onExit={() => setAppMode('selection')} />
+  }
+
+  if (appMode === 'selection') {
+    return (
+      <div className="selection-screen" style={{
+        backgroundImage: 'radial-gradient(ellipse 80% 60% at 50% 0%, rgba(99,102,241,0.08) 0%, transparent 60%), radial-gradient(ellipse 60% 40% at 80% 100%, rgba(168,85,247,0.05) 0%, transparent 50%)'
+      }}>
+        <div style={{ textAlign: 'center', marginBottom: '56px' }}>
+          <div style={{ fontSize: '0.65rem', fontWeight: 800, letterSpacing: '0.2em', color: '#334155', marginBottom: '16px' }}>testingGpt · v2.5 PROFESSIONAL</div>
+          <h1 style={{ fontSize: '3rem', fontWeight: 900, letterSpacing: '-0.04em', margin: 0, background: 'linear-gradient(135deg, #f8fafc 0%, #94a3b8 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Choose Your Mode</h1>
+          <p style={{ color: '#475569', marginTop: '12px', fontSize: '1rem' }}>Select how you want to engage the intelligence engine</p>
+        </div>
+        <div className="selection-container">
+          <div className="selection-card" onClick={() => setAppMode('web_test')} style={{ borderColor: 'rgba(99,102,241,0.15)' }}>
+            <div className="selection-icon" style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.2)' }}>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="1.5">
+                <rect x="3" y="3" width="18" height="18" rx="3"/>
+                <path d="M3 9h18"/>
+                <path d="M9 21V9"/>
+              </svg>
+            </div>
+            <h2 style={{ color: '#e2e8f0' }}>Web Test Engine</h2>
+            <p>Full vulnerability scanner with tactical operation log, finding ledger, code audit, and backend intelligence mapping.</p>
+            <div style={{ marginTop: '20px', display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
+              {['Vulnerability Scan', 'Backend Intel', 'Code Audit', 'Attack Graph'].map(f => (
+                <span key={f} style={{ fontSize: '0.62rem', fontWeight: 700, padding: '3px 10px', borderRadius: '20px', background: 'rgba(99,102,241,0.1)', color: '#818cf8', border: '1px solid rgba(99,102,241,0.15)', letterSpacing: '0.04em' }}>{f}</span>
+              ))}
+            </div>
+          </div>
+          <div className="selection-card ide" onClick={() => setAppMode('ide')} style={{ borderColor: 'rgba(168,85,247,0.2)' }}>
+            <div className="selection-icon" style={{ background: 'rgba(168,85,247,0.1)', border: '1px solid rgba(168,85,247,0.2)' }}>
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#a855f7" strokeWidth="1.5">
+                <path d="m18 16 4-4-4-4"/>
+                <path d="m6 8-4 4 4 4"/>
+                <path d="m14.5 4-5 16"/>
+              </svg>
+            </div>
+            <h2 style={{ color: '#e2e8f0' }}>Agentic IDE</h2>
+            <p>Nemotron-3-Super-120B autonomously runs commands, reads files, fixes issues, and executes high-level testing tasks in real time.</p>
+            <div style={{ marginTop: '20px', display: 'flex', gap: '8px', flexWrap: 'wrap', justifyContent: 'center' }}>
+              {['Shell Commands', 'File System', 'Live Terminal', 'Auto-Fix'].map(f => (
+                <span key={f} style={{ fontSize: '0.62rem', fontWeight: 700, padding: '3px 10px', borderRadius: '20px', background: 'rgba(168,85,247,0.1)', color: '#c4b5fd', border: '1px solid rgba(168,85,247,0.15)', letterSpacing: '0.04em' }}>{f}</span>
+              ))}
+            </div>
+            <div style={{ marginTop: '16px', padding: '10px 16px', background: 'rgba(168,85,247,0.06)', borderRadius: '10px', border: '1px solid rgba(168,85,247,0.1)' }}>
+              <span style={{ fontSize: '0.65rem', color: '#a78bfa', fontWeight: 700 }}>⚡ Powered by Nemotron-3-Super-120B via NVIDIA NIM</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="dashboard-container" style={{ '--sidebar-width': isInteracting ? '80px' : '320px' }}>

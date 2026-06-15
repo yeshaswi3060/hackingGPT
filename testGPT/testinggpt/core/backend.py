@@ -174,6 +174,70 @@ class LiteLLMBackend(AgentBackend):
         
         return False
 
+    # ─── INTELLIGENCE: Live Memory Snapshot ─────────────────────────────────
+
+    def _build_intelligence_snapshot(self) -> str | None:
+        """
+        Build a compact live-memory snapshot injected before every LLM call.
+        This prevents the model from forgetting what it already knows, even
+        after context truncation.
+
+        Returns a formatted string summary, or None if memory is empty.
+        """
+        if not self._key_findings:
+            return None
+
+        # Categorize findings by type
+        open_ports: list[str] = []
+        creds: list[str] = []
+        ips: list[str] = []
+        secrets: list[str] = []
+        versions: list[str] = []
+        flags: list[str] = []
+        other: list[str] = []
+
+        for f in self._key_findings[-60:]:  # Cap at 60 to avoid bloat
+            fl = f.lower()
+            if "open_port" in fl or "/tcp" in fl or "/udp" in fl:
+                open_ports.append(f)
+            elif any(k in fl for k in ["aws_", "stripe", "api_key", "jwt", "password", "secret", "token", "slack", "db_conn"]):
+                secrets.append(f)
+            elif "ip_address" in fl:
+                ips.append(f)
+            elif any(k in fl for k in ["server_version", "cms", "tech_version", "php", "apache", "nginx", "wordpress"]):
+                versions.append(f)
+            elif "flag{" in fl or "htb{" in fl or "ctf{" in fl:
+                flags.append(f)
+            else:
+                other.append(f)
+
+        lines = ["[🧠 LIVE INTELLIGENCE SNAPSHOT — Your accumulated knowledge so far]",
+                 f"Total intelligence entries: {len(self._key_findings)}"]
+
+        if flags:
+            lines.append("\n🏁 FLAGS CAPTURED:")
+            lines.extend(f"  {x}" for x in flags[:10])
+        if open_ports:
+            lines.append("\n🔌 OPEN PORTS / SERVICES:")
+            lines.extend(f"  {x}" for x in open_ports[:20])
+        if versions:
+            lines.append("\n🖥️  DETECTED VERSIONS / TECH STACK:")
+            lines.extend(f"  {x}" for x in versions[:15])
+        if secrets:
+            lines.append("\n🔑 SECRETS / CREDENTIALS FOUND:")
+            lines.extend(f"  {x}" for x in secrets[:15])
+        if ips:
+            lines.append("\n🌐 IP ADDRESSES SEEN:")
+            lines.extend(f"  {x}" for x in ips[:10])
+        if other:
+            lines.append("\n📋 OTHER FINDINGS:")
+            lines.extend(f"  {x}" for x in other[:15])
+
+        lines.append("\n[Use this snapshot to avoid redundant work and focus on unexplored attack vectors.]"
+                     "\n[MANDATORY: Make at least one tool call in your next response. No text-only responses.]"
+        )
+        return "\n".join(lines)
+
     # ─── IMPROVEMENT #4: Smart Tool Output Memory ───────────────────────────
 
     # Patterns to extract from long output (key intelligence)
@@ -380,14 +444,21 @@ class LiteLLMBackend(AgentBackend):
                 script_chunks = []
                 last_emit_len = 0
                 
-                response = await litellm.acompletion(
-                    model=self._codegen_model,
-                    messages=messages,
-                    api_key=self._codegen_api_key,
-                    api_base=self._codegen_api_base,
-                    num_retries=1,
-                    stream=True
-                )
+                kwargs = {
+                    "model": self._codegen_model,
+                    "messages": messages,
+                    "api_key": self._codegen_api_key,
+                    "api_base": self._codegen_api_base,
+                    "num_retries": 1,
+                    "stream": True
+                }
+                if "nemotron-3-ultra" in self._codegen_model.lower():
+                    kwargs["extra_body"] = {"chat_template_kwargs": {"enable_thinking": True}, "reasoning_budget": 16384}
+                    kwargs["temperature"] = 1
+                    kwargs["top_p"] = 0.95
+                    kwargs["max_tokens"] = 16384
+                
+                response = await litellm.acompletion(**kwargs)
                 
                 async for chunk in response:
                     delta = chunk.choices[0].delta
@@ -555,16 +626,23 @@ class LiteLLMBackend(AgentBackend):
         
         try:
             print(f"DEBUG: [STRATEGY] Querying {self._strategy_model} for guidance...")
-            response = await litellm.acompletion(
-                model=self._strategy_model,
-                messages=[
+            kwargs = {
+                "model": self._strategy_model,
+                "messages": [
                     {"role": "system", "content": "You are a penetration testing strategist. Give specific, actionable advice."},
                     {"role": "user", "content": strategy_prompt}
                 ],
-                api_key=self._strategy_api_key,
-                api_base=self._strategy_api_base,
-                num_retries=1
-            )
+                "api_key": self._strategy_api_key,
+                "api_base": self._strategy_api_base,
+                "num_retries": 1
+            }
+            if "nemotron-3-ultra" in self._strategy_model.lower():
+                kwargs["extra_body"] = {"chat_template_kwargs": {"enable_thinking": True}, "reasoning_budget": 16384}
+                kwargs["temperature"] = 1
+                kwargs["top_p"] = 0.95
+                kwargs["max_tokens"] = 16384
+
+            response = await litellm.acompletion(**kwargs)
             strategy = response.choices[0].message.content
             print(f"DEBUG: [STRATEGY] Got response: {strategy[:100]}...")
             return strategy
@@ -676,47 +754,47 @@ class LiteLLMBackend(AgentBackend):
             f"If on Windows, use PowerShell or CMD syntax. Do NOT assume a Linux/Bash environment."
         )
         
+        tool_names_list = ", ".join(registry.list_tools())
         tool_hint = (
             "\n\n[SYSTEM ENVIRONMENT]\n"
             f"You are running on a **{os_name}** system. "
             f"You MUST use commands and paths compatible with this operating system. {env_msg}\n\n"
-            "[TOOL CALLING (CRITICAL - READ CAREFULLY)]\n"
-            "You have access to specific Python tools. You MUST use the following XML-style format to call them:\n"
-            "<tool_name>arguments</tool_name>\n"
-            "- Example: <terminal_execute>nmap -sC allcloths.com</terminal_execute>\n"
-            "- Example: <check_dependencies>[\"nmap\", \"sqlmap\"]</check_dependencies>\n"
-            "- Example: <read_file>C:\\path\\to\\file.txt</read_file>\n\n"
+            "[TOOL CALLING — HOW TO USE YOUR TOOLS]\n"
+            "You have access to powerful pentesting tools. Use them via the native function-calling API.\n"
+            "The system will call your selected function and return the results automatically.\n"
+            "If a model does not support native function calling, use XML tags instead:\n"
+            "  <terminal_execute>nmap -sC -sV TARGET</terminal_execute>\n"
+            "  <read_file>/path/to/file.txt</read_file>\n"
+            "  <write_to_file>{\"path\": \"exploit.py\", \"content\": \"...\"}\n"
+            "Always close XML tags: </terminal_execute>\n\n"
             "[LONG-RUNNING COMMANDS]\n"
-            "- For persistent services (e.g., `python -m http.server`, `proxychains`, `metasploit`), you MUST use the `background=True` argument.\n"
-            "- Example: `<terminal_execute background=True>python -m http.server 8000</terminal_execute>`\n"
-            "- Standard commands (nmap, curl, etc.) have a 30s timeout unless you specify a longer `timeout` integer.\n\n"
-            "IMPORTANT: Do NOT wrap tool calls in markdown blocks (like ```bash). Output them as plain text. This is CRITICAL for automation.\n"
-            "IMPORTANT: Ensure you close every tag with a slash like </terminal_execute>.\n"
-            "IMPORTANT: The tools listed below are NOT shell commands. You must call them with tags.\n"
-            "IMPORTANT: Do NOT use triple backticks anywhere in your response if you are recommending a command.\n"
-            "IMPORTANT: You MUST provide at least one tool call in every response until the mission is 100% complete and you have found all flags.\n\n"
-            "[AVAILABLE TOOLS]\n"
-            f"You have access to: {', '.join(registry.list_tools())}\n"
-            "- terminal_execute: Run shell commands (use this for curl, nmap, dir, ls, etc.)\n"
-            "- check_dependencies: Internal tool to check if programs are installed (DO NOT run this in terminal_execute)\n"
-            "- read_file: Read local files\n"
-            "- write_to_file: Create/update local files\n"
-            "- list_dir: List directory contents\n\n"
-            "[STAGED INTERACTION INSTRUCTION]\n"
-            "1. ASSESSMENT: List needed tools and use `<check_dependencies>` to verify availability.\n"
-            "2. EXECUTION: Call tools using the <tool_name> format. WAIT for real results.\n\n"
+            "For persistent services (e.g., python -m http.server), add background=True:\n"
+            "  <terminal_execute background=True>python -m http.server 8000</terminal_execute>\n\n"
+            "[ALL AVAILABLE TOOLS]\n"
+            f"You have access to: {tool_names_list}\n"
+            "  - terminal_execute: Run any shell command (nmap, curl, python, etc.)\n"
+            "  - read_file: Read local files\n"
+            "  - write_to_file: Create or update files (e.g., exploit scripts)\n"
+            "  - list_dir: List directory contents\n"
+            "  - web_search: Search the internet for CVEs and exploits\n"
+            "  - check_exploits: Search searchsploit for known vulnerabilities\n"
+            "  - check_dependencies: Check if tools are installed (auto-installs missing ones)\n"
+            "  - finding_found: Report a discovered vulnerability to the findings ledger\n"
+            "  - domain_crawler: Crawl and enumerate all pages of a domain\n"
+            "  - python_generator: Write and execute a custom Python exploit script\n"
+            "  - subdomain_dominator: Enumerate subdomains\n"
+            "  - secret_harvester: Scan for exposed secrets and API keys\n"
+            "  - fuzzer: Brute-force directories, parameters, or files\n"
+            "  - jwt_analyzer: Decode and attack JWT tokens\n"
+            "  - payload_engine: Generate and test attack payloads\n"
+            "  - network_pivot: Pivot through compromised hosts\n"
+            "  - hardcore_scan: Run a comprehensive automated scan suite\n\n"
             "[VULNERABILITY REPORTING (IMPORTANT)]\n"
-            "You MUST report any findings (even potential ones with 20%+ confidence) as soon as you suspect them.\n"
-            "As you gather more evidence, you should report the SAME finding again with an updated (higher or lower) confidence percentage.\n"
-            "Format for findings:\n"
-            "<finding_found>{\"type\": \"SQL Injection\", \"severity\": \"High\", \"description\": \"Potential injection in login form parameter 'user'\", \"confidence\": 35}</finding_found>\n"
-            "Include 'confidence' (integer 0-100) in the finding JSON.\n\n"
-            "[STEALTH & EVASION (CRITICAL)]\n"
-            "1. ALWAYS check for WAFs using `terminal_execute` with `wafw00f` before aggressive scanning.\n"
-            "2. If a WAF is detected, adjust your tools: Use slower speeds in nmap (-T2), add random user-agents, and avoid obvious patterns.\n"
-            "3. If a tool fails repeatedly, it might be an IP block. Switch tactics or wait.\n\n"
+            "Report any finding (even potential with 20%+ confidence) immediately using finding_found.\n"
+            "JSON format: {\"type\": \"SQL Injection\", \"severity\": \"High\", \"description\": \"...\", \"confidence\": 35}\n\n"
             "[EXPLOIT MATCHING]\n"
-            "When you discover a service version (e.g., Apache 2.4.49), you MUST use `<check_exploits>` to look for known CVEs and exploits before manual testing.\n"
+            "When you discover a service version, use check_exploits to find known CVEs before manual testing.\n"
+            "[CRITICAL] ALWAYS make at least one tool call per response. Never give a text-only response.\n"
         )
         full_prompt = self._system_prompt + tool_hint
         self._messages = [{"role": "system", "content": full_prompt}]
@@ -734,10 +812,48 @@ class LiteLLMBackend(AgentBackend):
         self._messages.append({"role": "user", "content": prompt})
         self._pending_query = prompt
 
+    # ─── Conversational Fast-Path Detection ─────────────────────────────────
+
+    _ATTACK_KEYWORDS = {
+        "scan", "hack", "exploit", "nmap", "target", "pentest", "penetration",
+        "attack", "vuln", "vulnerability", "sql", "xss", "lfi", "rfi", "rce",
+        "injection", "brute", "fuzz", "enum", "recon", "payload", "shell",
+        "reverse", "bind", "overflow", "bypass", "escalat", "privesc",
+        "credential", "password", "hash", "crack", "dump", "exfil",
+        "burp", "metasploit", "sqlmap", "gobuster", "ffuf", "nikto",
+        "http://", "https://", "ftp://", "ssh://",
+    }
+
+    _IP_PATTERN = re.compile(
+        r"\b(?:\d{1,3}\.){3}\d{1,3}\b"           # IPv4
+        r"|(?:[a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}\b"   # domain.tld
+    )
+
+    def _is_conversational(self, text: str) -> bool:
+        """
+        Returns True if the message is a simple conversational message
+        that does NOT require tool execution (e.g. 'hi', 'thanks', 'what can you do?').
+        These get a fast, direct reply — no tool loop, no delays.
+        """
+        if not text:
+            return True
+        t = text.strip().lower()
+        # If it's long it's probably a task
+        if len(t) > 120:
+            return False
+        # Contains an IP or domain → definitely a task
+        if self._IP_PATTERN.search(text):
+            return False
+        # Contains attack keywords → it's a task
+        if any(kw in t for kw in self._ATTACK_KEYWORDS):
+            return False
+        return True
+
     async def receive_messages(self) -> AsyncIterator[AgentMessage]:
         """
         The main ReAct loop for LiteLLM.
-        This handles tool calling and result integration.
+        Includes a fast conversational path for simple messages that
+        bypasses the heavy tool-calling loop entirely.
         """
         from testinggpt.tools.registry import get_registry
 
@@ -745,8 +861,41 @@ class LiteLLMBackend(AgentBackend):
             raise RuntimeError("Backend not connected")
 
         registry = get_registry()
-        
-        # Define tools for LiteLLM
+
+        # ── FAST PATH: Conversational messages bypass the full ReAct loop ──
+        # e.g. "hi", "thanks", "what can you do?" get an instant reply
+        last_user_msg = ""
+        for m in reversed(self._messages):
+            if m.get("role") == "user":
+                last_user_msg = m.get("content", "")
+                break
+
+        if self._is_conversational(last_user_msg):
+            print(f"AGENT_DEBUG: Fast conversational path triggered for: '{last_user_msg[:40]}'")
+            try:
+                fast_resp = await litellm.acompletion(
+                    model=self._model,
+                    messages=self._messages,
+                    api_key=self._api_key,
+                    api_base=self._api_base,
+                    tool_choice="none",   # No tools — pure text reply
+                    max_tokens=512,
+                    temperature=0.7,
+                    num_retries=1,
+                )
+                reply = fast_resp.choices[0].message.content or ""
+                if reply.strip():
+                    yield AgentMessage(type=MessageType.TEXT, content=reply.strip())
+                # Store in history as a plain dict
+                self._messages.append({"role": "assistant", "content": reply})
+            except Exception as e:
+                yield AgentMessage(type=MessageType.ERROR, content=f"Fast reply error: {e}")
+            # Yield RESULT to signal the controller this turn is done
+            yield AgentMessage(type=MessageType.RESULT, content="", metadata={"cost_usd": 0})
+            return  # Exit — no ReAct loop needed
+
+        # Define tools for LiteLLM (only built for real tasks, not chit-chat)
+
         available_tools = []
         for tool_name in registry.list_tools():
             tool = registry.get(tool_name)
@@ -760,12 +909,25 @@ class LiteLLMBackend(AgentBackend):
                     }
                 })
 
+        # ── Main ReAct loop: build tools list ONCE, then loop LLM calls ──
+        _registered_tool_names = set(registry.list_tools())
+        _iteration = 0
+        _max_iterations = 150
+        while True:
+            _iteration += 1
+            if _iteration > _max_iterations:
+                print(f"AGENT_DEBUG: Max iterations ({_max_iterations}) reached. Ending turn.")
+                yield AgentMessage(
+                    type=MessageType.RESULT,
+                    content=f"Max iterations ({_max_iterations}) reached. Mission paused for review.",
+                    metadata={"cost_usd": 0}
+                )
+                break
             try:
-                # Controlled pacing: 2 second delay between thinking/action loops
-                await asyncio.sleep(2)
+                # Minimal yield to keep event loop responsive (no artificial delay)
+                await asyncio.sleep(0.1)
                 
                 # Perform completion
-                # Use the selected key
                 # Safely log the key we're trying (first 6 chars)
                 current_key = self._api_key
                 if isinstance(current_key, str) and len(current_key) > 10:
@@ -778,13 +940,40 @@ class LiteLLMBackend(AgentBackend):
                 print(f"DEBUG: [liteLLM] Trying API Key [Index {self._current_key_index}]: {masked_key}")
                 print(f"DEBUG: [liteLLM] Model: {self._model}, Messages: {len(self._messages)}")
                 
-                response = await litellm.acompletion(
-                    model=self._model,
-                    messages=self._messages,
-                    api_key=self._api_key,
-                    api_base=self._api_base,
-                    num_retries=0 # Handle retries ourselves with rotation
-                )
+                kwargs = {
+                    "model": self._model,
+                    "messages": self._messages,
+                    "api_key": self._api_key,
+                    "api_base": self._api_base,
+                    "num_retries": 0,
+                    "max_tokens": 8192,
+                    "temperature": 0.7,
+                }
+
+                # Bug 2 fix: pass tool schemas so the model can call tools natively
+                if available_tools:
+                    kwargs["tools"] = available_tools
+                    kwargs["tool_choice"] = "auto"
+                
+                if "nemotron-3-ultra" in self._model.lower():
+                    kwargs["extra_body"] = {"chat_template_kwargs": {"enable_thinking": True}, "reasoning_budget": 16384}
+                    kwargs["temperature"] = 1
+                    kwargs["top_p"] = 0.95
+                    kwargs["max_tokens"] = 16384
+
+                # Inject live intelligence snapshot as a user-role context reminder
+                # This ensures the model always "remembers" what it found even after truncation
+                snapshot = self._build_intelligence_snapshot()
+                messages_to_send = list(self._messages)
+                if snapshot and len(self._messages) > 3:  # Don't inject on first turn
+                    messages_to_send = (
+                        list(self._messages[:-1]) +  # Everything except last user msg
+                        [{"role": "user", "content": snapshot}] +
+                        [self._messages[-1]]  # Last user message last
+                    )
+                    kwargs["messages"] = messages_to_send
+
+                response = await litellm.acompletion(**kwargs)
                 print(f"DEBUG: [liteLLM] Response received. Finish reason: {getattr(response.choices[0], 'finish_reason', 'unknown')}")
             except (litellm.RateLimitError, litellm.AuthenticationError, litellm.BadRequestError, Exception) as e:
                 # Check for specific rotation-triggering errors
@@ -802,9 +991,10 @@ class LiteLLMBackend(AgentBackend):
                 is_context_error = "too large" in error_str or "context" in error_str or "length" in error_str or "maximum" in error_str
                 
                 if is_context_error:
-                    # Truncate history (keep system prompt + last 5 messages)
-                    if len(self._messages) > 6:
-                        self._messages = [self._messages[0]] + self._messages[-5:]
+                    # Truncate history — always keep system prompt + last 6 messages
+                    if len(self._messages) > 8:
+                        system_msg = self._messages[0]  # Always preserve system prompt
+                        self._messages = [system_msg] + self._messages[-6:]
                         yield AgentMessage(
                             type=MessageType.TEXT, 
                             content="⚠️ Context window exceeded. Truncating mission history to free up intelligence space... Resuming assessment immediately."
@@ -854,43 +1044,57 @@ class LiteLLMBackend(AgentBackend):
                         type=MessageType.ERROR,
                         content=f"LLM Error: {str(e)}"
                     )
-                    break
-            except Exception as e:
-                yield AgentMessage(
-                    type=MessageType.ERROR,
-                    content=f"LLM Error: {str(e)}"
-                )
-                break
 
             message = response.choices[0].message
-            self._messages.append(message)
+            # Convert LiteLLM message object → plain dict so subsequent API calls don't fail
+            try:
+                msg_dict = {
+                    "role": message.role,
+                    "content": message.content or "",
+                }
+                # Preserve native tool_calls in the history dict
+                if hasattr(message, "tool_calls") and message.tool_calls:
+                    msg_dict["tool_calls"] = [
+                        {
+                            "id": tc.id,
+                            "type": "function",
+                            "function": {
+                                "name": tc.function.name,
+                                "arguments": tc.function.arguments if isinstance(tc.function.arguments, str) else json.dumps(tc.function.arguments)
+                            }
+                        } for tc in message.tool_calls
+                    ]
+            except Exception:
+                # Ultimate fallback: use the raw object
+                msg_dict = message
+            self._messages.append(msg_dict)
 
             # Handle text content
             if message.content:
-                # Extract and process thinking tag
-                thought_match = re.search(r"<thinking>(?P<thought>[\s\S]*?)</thinking>", message.content, re.IGNORECASE)
+                # Extract and process thinking tag (but DO NOT strip it from UI stream, the UI needs it for the reasoning dropdown)
+                thought_match = re.search(r"<(?:thinking|thought)>(?P<thought>[\s\S]*?)</(?:thinking|thought)>", message.content, re.IGNORECASE)
                 content_to_show = message.content
                 if thought_match:
                     self._current_thought = thought_match.group("thought").strip()
-                    # Strip thinking from UI content
-                    content_to_show = re.sub(r"<thinking>[\s\S]*?</thinking>", "", content_to_show, flags=re.IGNORECASE).strip()
                 
                 # Strip ALL potential tool and finding tags from content shown to user to prevent "flashing" XML
                 for t_name in registry.list_tools():
                     content_to_show = re.sub(rf"<{t_name}(?:\s+[^>]*)?>[\s\S]*?</{t_name}>", "", content_to_show, flags=re.IGNORECASE)
                     content_to_show = re.sub(rf"<{t_name}(?:\s+[^>]*)?>", "", content_to_show, flags=re.IGNORECASE)
                 
-                content_to_show = re.sub(r"<(?:finding_found|ask_user|assessment|execution)(?:\s+[^>]*)?>[\s\S]*?</(?:finding_found|ask_user|assessment|execution)>", "", content_to_show, flags=re.IGNORECASE)
+                content_to_show = re.sub(r"<(?:finding_found|ask_user|assessment|execution|tool_call)(?:\s+[^>]*)?>[\s\S]*?</(?:finding_found|ask_user|assessment|execution|tool_call)>", "", content_to_show, flags=re.IGNORECASE)
                 content_to_show = content_to_show.strip()
 
                 if content_to_show:
                     yield AgentMessage(type=MessageType.TEXT, content=content_to_show)
-                    # Pacing: 2 second delay after showing an answer
-                    await asyncio.sleep(2)
+
+            # Detect finish_reason early: if 'stop' and no native tool_calls, this is a text-only response
+            finish_reason = getattr(response.choices[0], 'finish_reason', 'stop') or 'stop'
+            has_native_tools = bool(getattr(message, 'tool_calls', None))
 
             # Handle tool calls (official API)
             tool_calls_to_process = []
-            if message.tool_calls:
+            if has_native_tools:
                 for tc in message.tool_calls:
                     tool_calls_to_process.append({
                         "id": tc.id,
@@ -899,7 +1103,8 @@ class LiteLLMBackend(AgentBackend):
                     })
             
             # Fallback: Handle models that return JSON or XML in content
-            elif message.content:
+            # Only do expensive XML parsing if we didn't get native tool calls
+            elif message.content and finish_reason != 'stop':
                 try:
                     # 1. Clean the content - sometimes models wrap things in markdown code blocks
                     content = message.content
@@ -926,6 +1131,9 @@ class LiteLLMBackend(AgentBackend):
                                 name = (gd.get("name") or gd.get("name2") or gd.get("name3") or gd.get("name4") or "").strip()
                                 
                                 if not name: continue
+                                # Only process names that match a registered tool — prevents HTML tag false-positives
+                                if name.lower() not in _registered_tool_names:
+                                    continue
                                 raw_args = (gd.get("args") or gd.get("args2") or gd.get("args3") or gd.get("args4") or "").strip()
                                 raw_attrs = (gd.get("attrs") or gd.get("attrs2") or gd.get("attrs3") or "").strip()
                                 
@@ -1093,8 +1301,27 @@ class LiteLLMBackend(AgentBackend):
                         else:
                             self._consecutive_tool_failures = 0
 
-                        # Pacing: 2 second delay after tool execution finishes
-                        await asyncio.sleep(2)
+                        # Brief yield after tool execution
+                        await asyncio.sleep(0.1)
+                    else:
+                        # Tool not found in registry — tell the model explicitly
+                        error_msg = (
+                            f"TOOL NOT FOUND: '{func_name}' is not a registered tool. "
+                            f"Available tools: {', '.join(_registered_tool_names)}. "
+                            f"Use terminal_execute to run shell commands."
+                        )
+                        yield AgentMessage(
+                            type=MessageType.TOOL_RESULT,
+                            content=error_msg,
+                            tool_name=func_name,
+                            tool_success=False
+                        )
+                        self._messages.append({
+                            "role": "tool",
+                            "tool_call_id": tc["id"],
+                            "name": func_name,
+                            "content": error_msg,
+                        })
                 
                 # ── Code Generator + Strategy: Trigger after repeated failures ──
                 if self._consecutive_tool_failures >= 3:
@@ -1163,14 +1390,21 @@ class LiteLLMBackend(AgentBackend):
                 # Continue loop to let LLM process results
                 continue
             
-            # ── Smart Error Recovery: check if last tool failed ──
+            # ── Smart Error Recovery: only trigger on genuine tool failures ──
             last_was_error = False
             last_error_content = ""
             last_error_tool = "unknown"
             if self._messages and self._messages[-1].get("role") == "tool":
                 content = str(self._messages[-1].get("content", ""))
                 tool_name = self._messages[-1].get("name", "unknown")
-                if "failed with code" in content or "error" in content.lower() or "not recognized" in content or "diagnostic" in content.lower():
+                # Only trigger if there are STRONG failure signals, not just the word "error" in output
+                strong_failure_signals = [
+                    "failed with code", "not recognized as an internal",
+                    "command not found", "commandnotfoundexception",
+                    "is not recognized", "access is denied",
+                    "stderr/error:", "tool not found:"
+                ]
+                if any(sig in content.lower() for sig in strong_failure_signals):
                     last_was_error = True
                     last_error_content = content
                     last_error_tool = tool_name
@@ -1184,11 +1418,12 @@ class LiteLLMBackend(AgentBackend):
                 })
                 continue
 
-            # For now, we'll yield a result which finishes the turn
-            print(f"AGENT_DEBUG: Turn finished with no tools. Finish reason: {getattr(response.choices[0], 'finish_reason', 'unknown')}")
+            # Turn ended with no pending tool calls — yield result and break
+            finish_label = getattr(response.choices[0], 'finish_reason', 'stop') or 'stop'
+            print(f"AGENT_DEBUG: Turn finished. Finish reason: {finish_label}, iteration: {_iteration}")
             yield AgentMessage(
                 type=MessageType.RESULT,
-                content="Turn complete. No further actions recommended.",
+                content="Turn complete.",
                 metadata={"cost_usd": 0}
             )
             break

@@ -11,7 +11,13 @@ from pathlib import Path
 
 from testinggpt.core.events import Event, EventBus, EventType
 import requests
-from bs4 import BeautifulSoup, Comment
+try:
+    from bs4 import BeautifulSoup, Comment
+    _BS4_AVAILABLE = True
+except ImportError:
+    _BS4_AVAILABLE = False
+    BeautifulSoup = None
+    Comment = None
 from urllib.parse import urljoin, urlparse
 import tempfile
 import time
@@ -737,7 +743,7 @@ async def crawl_website_api(request: Request):
                 files_saved += 1
 
                 # Extract intelligence if HTML
-                if "text/html" in resp.headers.get("content-type", ""):
+                if "text/html" in resp.headers.get("content-type", "") and _BS4_AVAILABLE:
                     soup = BeautifulSoup(resp.text, 'html.parser')
                     
                     # 3. EXTRACTION: Find hidden inputs and comments
@@ -839,7 +845,7 @@ async def crawl_website_api(request: Request):
         print(f"ERROR during aggressive crawl: {e}")
         return {"success": False, "error": str(e)}
 
-# Serve static files if they exist
+# Detect static files path — mount happens AFTER all routes are defined (at end of file)
 # Try multiple paths for robustness (local dev, installed package, relative to CWD)
 possible_paths = [
     Path(__file__).resolve().parent / "web" / "dist", # Local dev relative to server.py
@@ -857,18 +863,10 @@ for p in possible_paths:
 
 if static_path:
     print(f"DEBUG: Serving frontend from confirmed path: {static_path}")
-    app.mount("/", StaticFiles(directory=str(static_path), html=True), name="static")
 else:
     # Diagnostic search for troubleshooting
     search_msg = "\n".join([f"- {p} (exists: {p.exists()})" for p in possible_paths])
     print(f"DEBUG: Frontend NOT found in common locations:\n{search_msg}")
-    @app.get("/")
-    async def root():
-        return {
-            "message": "testinggpt Web API is running. Frontend not built yet.",
-            "paths_searched": [str(p) for p in possible_paths],
-            "tip": "Run 'npm run build' in the web interface folder or check your PYTHONPATH."
-        }
 
 from fastapi import HTTPException
 from starlette.exceptions import HTTPException as StarletteHTTPException
@@ -1097,7 +1095,624 @@ TERMINATION CONDITION: You are FORBIDDEN from reporting 'Mission complete' or 'A
     }
 
 
-# ─── APK Reverse Engineering Feature ────────────────────────────────────────
+
+# ─── Agentic IDE Feature ──────────────────────────────────────────────────────
+
+import asyncio as _asyncio
+import subprocess as _subprocess
+import shutil as _shutil
+
+# ── IDE State ─────────────────────────────────────────────────────────────────
+_ide_session = {"workspace": "", "active": False}
+_ide_event_queue: "asyncio.Queue | None" = None
+_ide_memories: list = []
+_ide_running = False
+_ide_conversation: list = []
+
+# ── IDE System Prompt ─────────────────────────────────────────────────────────
+IDE_SYSTEM_PROMPT = """You are an expert AI coding assistant. You help users write code, debug, and complete software engineering tasks.
+
+Be direct and helpful. Answer questions clearly. For simple questions like greetings, answer conversationally — no need to use tools.
+
+When you need to interact with files or run commands, use tools in this format:
+<tool_call>
+{"tool": "shell", "command": "<command>", "cwd": "<working_dir>"}
+</tool_call>
+<tool_call>
+{"tool": "read_file", "path": "<file_path>"}
+</tool_call>
+<tool_call>
+{"tool": "write_file", "path": "<file_path>", "content": "<full_content>"}
+</tool_call>
+<tool_call>
+{"tool": "list_dir", "path": "<dir_path>"}
+</tool_call>
+<tool_call>
+{"tool": "grep_search", "query": "<search_term>", "path": "<dir_path>"}
+</tool_call>
+<tool_call>
+{"tool": "replace_file_content", "path": "<file_path>", "old": "<old_text>", "new": "<new_text>"}
+</tool_call>
+
+Rules:
+- For conversational messages ("hello", "how are you", questions), just reply in plain text. No tools needed.
+- For coding tasks, use tools to read files first, then make changes.
+- After completing a task, write a summary of what you did.
+- End complex multi-step tasks with ---DONE---
+"""
+
+# ── Model candidates ──────────────────────────────────────────────────────────
+def _ide_model_candidates() -> list:
+    """Return ordered list of (model_str, kwargs) for litellm.acompletion.
+
+    NVIDIA-only priority:
+    1. nvidia/nemotron-3-ultra-550b-a55b  (NVIDIA_NEMOTRON_KEY)
+    2. deepseek-ai/deepseek-v3-0324       (NVIDIA_DEEPSEEK_KEY)
+    """
+    import os
+
+    nemotron_key = os.getenv("NVIDIA_NEMOTRON_KEY", "")
+    deepseek_key = os.getenv("NVIDIA_DEEPSEEK_KEY", "")
+    nvidia_base = os.getenv("NVIDIA_BASE_URL", "https://integrate.api.nvidia.com/v1")
+
+    candidates = []
+
+    # ── 1. NVIDIA Nemotron-Ultra-550B (User Requested) ────────────────────────
+    if nemotron_key:
+        candidates.append((
+            "openai/nvidia/nemotron-3-ultra-550b-a55b",
+            {
+                "api_key": nemotron_key,
+                "api_base": nvidia_base,
+                "temperature": 0.2,
+                "max_tokens": 4096,
+            }
+        ))
+
+    # ── 2. NVIDIA DeepSeek-V3 ─────────────────────────────────────────────────
+    if deepseek_key:
+        candidates.append((
+            "openai/deepseek-ai/deepseek-v3",
+            {
+                "api_key": deepseek_key,
+                "api_base": nvidia_base,
+                "temperature": 0.2,
+                "max_tokens": 4096,
+            }
+        ))
+
+    if not candidates:
+        raise RuntimeError(
+            "No NVIDIA API keys found. Set NVIDIA_NEMOTRON_KEY and/or "
+            "NVIDIA_DEEPSEEK_KEY in your .env file."
+        )
+
+    return candidates
+
+# ── Format model name for display ─────────────────────────────────────────────
+def _ide_format_model_name(model_str: str) -> str:
+    """Convert raw model string to clean display name."""
+    s = model_str.lower()
+    if "nemotron-super" in s or "nemotron-ultra" in s or "nemotron" in s:
+        return "NEMOTRON"
+    if "deepseek-v3" in s:
+        return "DEEPSEEK-V3"
+    if "deepseek" in s:
+        return "DEEPSEEK"
+    if "gemini-2.0-flash" in s:
+        return "GEMINI-FLASH"
+    if "gemini" in s:
+        return "GEMINI"
+    if "llama-3.3" in s:
+        return "LLAMA-3.3"
+    if "llama-3.1" in s or "llama" in s:
+        return "LLAMA-3.1"
+    if "gpt-4" in s:
+        return "GPT-4"
+    if "claude" in s:
+        return "CLAUDE"
+    # last segment after /
+    parts = model_str.split("/")
+    return parts[-1].upper()[:20]
+
+# ── Push event to SSE queue ────────────────────────────────────────────────────
+def _ide_push_event(etype: str, data: dict):
+    import time
+    global _ide_event_queue
+    if _ide_event_queue is not None:
+        ev = {"type": etype, "data": data, "timestamp": _time_iso()}
+        try:
+            _ide_event_queue.put_nowait(ev)
+        except Exception:
+            pass
+
+def _time_iso():
+    import datetime
+    return datetime.datetime.utcnow().isoformat() + "Z"
+
+# ── Tool executor ─────────────────────────────────────────────────────────────
+async def _ide_execute_tool(tool_call: dict, workspace: str) -> dict:
+    """Execute a tool call and return the result dict."""
+    tool = tool_call.get("tool", "")
+    result = {"tool": tool, "success": False}
+
+    try:
+        if tool == "shell":
+            cmd = tool_call.get("command", "")
+            cwd = tool_call.get("cwd", workspace) or workspace
+            _ide_push_event("TOOL_START", {"tool": "shell", "command": cmd})
+            proc = await asyncio.create_subprocess_shell(
+                cmd, cwd=cwd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.STDOUT,
+                limit=512*1024
+            )
+            try:
+                stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=60.0)
+            except asyncio.TimeoutError:
+                proc.kill()
+                stdout = b"[TIMEOUT after 60s]"
+                proc.returncode = -1
+            output = stdout.decode("utf-8", errors="replace")[:8000]
+            result = {"tool": "shell", "command": cmd, "output": output, "returncode": proc.returncode or 0, "success": True}
+            _ide_push_event("TOOL_RESULT", result)
+
+        elif tool == "read_file":
+            path = tool_call.get("path", "")
+            _ide_push_event("TOOL_START", {"tool": "read_file", "path": path})
+            try:
+                with open(path, "r", encoding="utf-8", errors="ignore") as f:
+                    content = f.read(25000)
+                truncated = len(content) == 25000
+                if truncated:
+                    content += "\n\n... [FILE TRUNCATED AT 25000 CHARS] ..."
+                result = {"tool": "read_file", "path": path, "content": content, "truncated": truncated, "success": True}
+            except FileNotFoundError:
+                result = {"tool": "read_file", "path": path, "content": f"Error: file not found: {path}", "success": False}
+            except Exception as ex:
+                result = {"tool": "read_file", "path": path, "content": f"Error: {ex}", "success": False}
+            _ide_push_event("TOOL_RESULT", result)
+
+        elif tool == "write_file":
+            path = tool_call.get("path", "")
+            content = tool_call.get("content", "")
+            _ide_push_event("TOOL_START", {"tool": "write_file", "path": path})
+            try:
+                os.makedirs(os.path.dirname(os.path.abspath(path)), exist_ok=True)
+                with open(path, "w", encoding="utf-8") as f:
+                    f.write(content)
+                result = {"tool": "write_file", "path": path, "bytes": len(content.encode()), "success": True}
+            except Exception as ex:
+                result = {"tool": "write_file", "path": path, "output": f"Error: {ex}", "success": False}
+            _ide_push_event("TOOL_RESULT", result)
+
+        elif tool == "list_dir":
+            path = tool_call.get("path", workspace)
+            _ide_push_event("TOOL_START", {"tool": "list_dir", "path": path})
+            try:
+                items = []
+                for name in sorted(os.listdir(path)):
+                    full = os.path.join(path, name)
+                    is_dir = os.path.isdir(full)
+                    size = 0 if is_dir else os.path.getsize(full)
+                    items.append({"name": name, "path": full, "isDir": is_dir, "size": size})
+                result = {"tool": "list_dir", "path": path, "items": items[:100], "success": True}
+            except Exception as ex:
+                result = {"tool": "list_dir", "path": path, "items": [], "output": f"Error: {ex}", "success": False}
+            _ide_push_event("TOOL_RESULT", result)
+
+        elif tool == "grep_search":
+            query = tool_call.get("query", "")
+            path = tool_call.get("path", workspace)
+            _ide_push_event("TOOL_START", {"tool": "grep_search", "query": query, "path": path})
+            try:
+                cmd = f'grep -rn "{query}" "{path}" --include="*.py" --include="*.js" --include="*.jsx" --include="*.ts" --include="*.tsx" --include="*.html" --include="*.css" -l 2>/dev/null | head -20'
+                proc = await asyncio.create_subprocess_shell(cmd, stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.DEVNULL)
+                stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=15.0)
+                output = stdout.decode("utf-8", errors="replace")[:4000]
+                result = {"tool": "grep_search", "query": query, "output": output, "success": True}
+            except Exception as ex:
+                result = {"tool": "grep_search", "query": query, "output": f"Error: {ex}", "success": False}
+            _ide_push_event("TOOL_RESULT", result)
+
+        elif tool == "replace_file_content":
+            path = tool_call.get("path", "")
+            old = tool_call.get("old", "")
+            new = tool_call.get("new", "")
+            _ide_push_event("TOOL_START", {"tool": "replace_file_content", "path": path})
+            try:
+                with open(path, "r", encoding="utf-8", errors="ignore") as f:
+                    content = f.read()
+                if old not in content:
+                    result = {"tool": "replace_file_content", "path": path, "output": "Error: old string not found in file", "success": False}
+                else:
+                    new_content = content.replace(old, new, 1)
+                    with open(path, "w", encoding="utf-8") as f:
+                        f.write(new_content)
+                    result = {"tool": "replace_file_content", "path": path, "success": True}
+            except Exception as ex:
+                result = {"tool": "replace_file_content", "path": path, "output": f"Error: {ex}", "success": False}
+            _ide_push_event("TOOL_RESULT", result)
+
+        else:
+            result = {"tool": tool, "output": f"Unknown tool: {tool}", "success": False}
+            _ide_push_event("TOOL_RESULT", result)
+
+    except Exception as ex:
+        result = {"tool": tool, "output": f"Tool error: {ex}", "success": False}
+        _ide_push_event("TOOL_RESULT", result)
+
+    return result
+
+# ── Agentic loop ──────────────────────────────────────────────────────────────
+async def _ide_agentic_loop(conversation_history: list, workspace: str):
+    """Main agentic loop: model → parse tool calls → execute → inject results → repeat."""
+    global _ide_running, _ide_conversation
+
+    import litellm
+    import re as _re
+
+    candidates = _ide_model_candidates()
+    max_iterations = 20
+    iteration = 0
+    selected_model = ""
+
+    while _ide_running and iteration < max_iterations:
+        iteration += 1
+
+        # ── Emit THINKING before every LLM call ───────────────────────────────
+        _ide_push_event("THINKING", {"iteration": iteration})
+
+        # ── Select model (try candidates in order) ────────────────────────────
+        response_text = None
+        used_model = None
+        for model_str, model_kwargs in candidates:
+            if not _ide_running:
+                break
+            try:
+                # Announce which model we're using
+                if selected_model != model_str:
+                    selected_model = model_str
+                    display_name = _ide_format_model_name(model_str)
+                    _ide_push_event("MODEL_SELECTED", {"model": display_name, "raw": model_str})
+
+                resp = await litellm.acompletion(
+                    model=model_str,
+                    messages=conversation_history,
+                    stream=True,
+                    num_retries=1,
+                    timeout=120,
+                    **model_kwargs
+                )
+
+                # ── Stream response ────────────────────────────────────────────
+                accumulated = ""
+                async for chunk in resp:
+                    if not _ide_running:
+                        break
+                    delta = ""
+                    try:
+                        delta = chunk.choices[0].delta.content or ""
+                    except Exception:
+                        pass
+                    accumulated += delta
+                    if delta:
+                        _ide_push_event("AI_MESSAGE_PARTIAL", {"content": accumulated})
+
+                response_text = accumulated.strip()
+                used_model = model_str
+                break  # success — exit candidate loop
+
+            except Exception as model_err:
+                err_str = str(model_err)
+                print(f"[IDE] Model {model_str} failed: {err_str[:300]}")
+                _ide_push_event("AI_MESSAGE_PARTIAL", {"content": f"[{_ide_format_model_name(model_str)} failed, trying next…]"})
+                continue  # try next candidate
+
+        if not response_text:
+            # All models failed
+            _ide_push_event("AI_MESSAGE", {"content": "⚠️ All AI models failed to respond. Check your NVIDIA API keys in .env and network connection."})
+            _ide_push_event("DONE", {"iterations": iteration, "reason": "all_models_failed"})
+            _ide_running = False
+            return
+
+        # ── Save conversation ─────────────────────────────────────────────────
+        conversation_history.append({"role": "assistant", "content": response_text})
+        _ide_conversation = conversation_history
+
+        # ── Parse tool calls ──────────────────────────────────────────────────
+        tool_call_blocks = _re.findall(
+            r'<tool_call>\s*([\s\S]*?)\s*</tool_call>',
+            response_text
+        )
+
+        # ── No tool calls → direct answer, task complete ──────────────────────
+        if not tool_call_blocks:
+            _ide_push_event("AI_MESSAGE", {"content": response_text})
+            _ide_push_event("DONE", {"iterations": iteration, "reason": "task_complete"})
+            _ide_running = False
+            return
+
+        # ── Has tool calls — emit the reasoning message first ─────────────────
+        # Show the text parts (excluding tool_call XML) as an AI message
+        text_before_tools = _re.sub(r'<tool_call>[\s\S]*?</tool_call>', '', response_text).strip()
+        if text_before_tools:
+            _ide_push_event("AI_MESSAGE", {"content": text_before_tools})
+
+        # ── Execute all tool calls in sequence ────────────────────────────────
+        tool_results_for_history = []
+        for tc_raw in tool_call_blocks:
+            try:
+                tc = json.loads(tc_raw)
+            except Exception:
+                try:
+                    import ast as _ast
+                    tc = _ast.literal_eval(tc_raw)
+                except Exception:
+                    _ide_push_event("TOOL_RESULT", {"tool": "unknown", "output": f"Could not parse tool call: {tc_raw[:200]}", "success": False})
+                    continue
+
+            result = await _ide_execute_tool(tc, workspace)
+            tool_results_for_history.append(result)
+
+        # ── Inject tool results back into conversation ─────────────────────────
+        if tool_results_for_history:
+            results_text = "[TOOL RESULTS]\n"
+            for r in tool_results_for_history:
+                t = r.get("tool", "unknown")
+                if t == "shell":
+                    results_text += f"\n<tool_result tool=\"shell\" command={json.dumps(r.get('command',''))} returncode={r.get('returncode',0)}>\n{r.get('output', '')}\n</tool_result>"
+                elif t == "read_file":
+                    results_text += f"\n<tool_result tool=\"read_file\" path={json.dumps(r.get('path',''))}>\n{r.get('content', '')}\n</tool_result>"
+                elif t == "write_file":
+                    status = "OK" if r.get("success") else r.get("output", "error")
+                    results_text += f"\n<tool_result tool=\"write_file\" path={json.dumps(r.get('path',''))}>\n{status}\n</tool_result>"
+                elif t == "list_dir":
+                    items = r.get("items", [])
+                    listing = "\n".join(f"{'[DIR]' if i['isDir'] else '[FILE]'} {i['name']}" for i in items[:50])
+                    results_text += f"\n<tool_result tool=\"list_dir\" path={json.dumps(r.get('path',''))}>\n{listing}\n</tool_result>"
+                elif t in ("grep_search", "replace_file_content"):
+                    out = r.get("output", "OK" if r.get("success") else "error")
+                    results_text += f"\n<tool_result tool={json.dumps(t)}>\n{out}\n</tool_result>"
+                else:
+                    results_text += f"\n<tool_result tool={json.dumps(t)}>\n{r.get('output', str(r))}\n</tool_result>"
+
+            conversation_history.append({"role": "user", "content": results_text})
+            _ide_conversation = conversation_history
+
+    # ── Loop exhausted ────────────────────────────────────────────────────────
+    if _ide_running:
+        _ide_push_event("AI_MESSAGE", {"content": "Agent reached maximum iteration limit."})
+    _ide_push_event("DONE", {"iterations": iteration, "reason": "max_iterations"})
+    _ide_running = False
+
+
+# ── IDE Endpoints ─────────────────────────────────────────────────────────────
+
+@app.post("/api/ide/start")
+async def ide_start(request: Request):
+    """Initialize the IDE session with a workspace path."""
+    global _ide_session, _ide_event_queue, _ide_memories, _ide_conversation, _ide_running
+    data = await request.json()
+    workspace = data.get("workspace", "").strip()
+    if not workspace:
+        workspace = "."
+
+    _ide_session["workspace"] = workspace
+    _ide_session["active"] = True
+    _ide_running = False
+    _ide_conversation = []
+    
+    if _ide_event_queue is None:
+        _ide_event_queue = asyncio.Queue(maxsize=500)
+    else:
+        # Clear existing queue without replacing the object the SSE generator is listening to
+        while not _ide_event_queue.empty():
+            try:
+                _ide_event_queue.get_nowait()
+            except Exception:
+                pass
+
+    # Load persisted memories if they exist
+    mem_file = os.path.join(os.path.dirname(__file__), ".ide_memory.json")
+    try:
+        with open(mem_file, "r") as f:
+            _ide_memories = json.load(f)
+    except Exception:
+        _ide_memories = []
+
+    _ide_push_event("SESSION_STARTED", {"workspace": workspace})
+    return {"success": True, "workspace": workspace, "memories_loaded": len(_ide_memories)}
+
+
+@app.post("/api/ide/prompt")
+async def ide_prompt(request: Request):
+    """Accept a user message and start the agentic loop."""
+    global _ide_running, _ide_conversation, _ide_event_queue
+    data = await request.json()
+    message = data.get("message", "").strip()
+    if not message:
+        return {"success": False, "error": "Empty message"}
+
+    if _ide_running:
+        return {"success": False, "error": "Agent is already running"}
+
+    workspace = _ide_session.get("workspace", ".")
+    if _ide_event_queue is None:
+        _ide_event_queue = asyncio.Queue(maxsize=500)
+
+    # Emit USER_MESSAGE event so UI shows it immediately
+    _ide_push_event("USER_MESSAGE", {"content": message})
+
+    # Build messages with system prompt
+    if not _ide_conversation:
+        # Fresh conversation — add system prompt + workspace context
+        mem_ctx = ""
+        if _ide_memories:
+            mem_lines = "\n".join(f"[{m.get('type','note')}] {m.get('content','')}" for m in _ide_memories[:20])
+            mem_ctx = f"\n\nSAVED MEMORIES:\n{mem_lines}"
+        _ide_conversation = [
+            {"role": "system", "content": IDE_SYSTEM_PROMPT + mem_ctx},
+            {"role": "user", "content": f"[WORKSPACE: {workspace}]\n\n{message}"}
+        ]
+    else:
+        # Continue conversation
+        _ide_conversation.append({"role": "user", "content": message})
+
+    _ide_running = True
+
+    async def run_loop():
+        global _ide_running
+        try:
+            await _ide_agentic_loop(_ide_conversation, workspace)
+        except Exception as e:
+            import traceback
+            tb = traceback.format_exc()
+            print(f"[IDE LOOP ERROR] {e}\n{tb}")
+            _ide_push_event("AI_MESSAGE", {"content": f"⚠️ Agent error: {e}\n\n```\n{tb[-600:]}\n```"})
+            _ide_push_event("DONE", {"iterations": 0, "reason": "error"})
+            _ide_running = False
+
+    asyncio.create_task(run_loop())
+    return {"success": True}
+
+
+@app.get("/api/ide/events")
+async def ide_events():
+    """SSE stream for IDE events."""
+    global _ide_event_queue
+    if _ide_event_queue is None:
+        _ide_event_queue = asyncio.Queue(maxsize=500)
+
+    async def generator():
+        # Heartbeat to confirm connection
+        yield f"data: {json.dumps({'type': 'HEARTBEAT', 'data': {}, 'timestamp': _time_iso()})}\n\n"
+
+        while True:
+            try:
+                ev = await asyncio.wait_for(_ide_event_queue.get(), timeout=15.0)
+                yield f"data: {json.dumps(ev)}\n\n"
+            except asyncio.TimeoutError:
+                yield f"data: {json.dumps({'type': 'HEARTBEAT', 'data': {}, 'timestamp': _time_iso()})}\n\n"
+            except (asyncio.CancelledError, GeneratorExit):
+                break
+
+    return StreamingResponse(generator(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
+
+@app.get("/api/ide/filesystem")
+async def ide_filesystem(path: str = ""):
+    """List directory contents for the file tree."""
+    target = path or _ide_session.get("workspace", ".")
+    SKIP = {'.git', '__pycache__', 'node_modules', '.venv', 'venv', 'dist', 'build', '.next', 'target', '.ruff_cache'}
+    try:
+        items = []
+        for name in sorted(os.listdir(target)):
+            if name in SKIP or name.startswith('.'): continue
+            full = os.path.join(target, name)
+            try:
+                is_dir = os.path.isdir(full)
+                size = 0 if is_dir else os.path.getsize(full)
+                items.append({"name": name, "path": full, "isDir": is_dir, "size": size})
+            except OSError:
+                pass
+        return {"success": True, "path": target, "items": items}
+    except Exception as e:
+        return {"success": False, "error": str(e), "items": []}
+
+
+@app.get("/api/ide/read-file")
+async def ide_read_file(path: str = ""):
+    """Read a file and return its content (max 25000 chars)."""
+    if not path:
+        return {"success": False, "error": "No path provided", "content": ""}
+    try:
+        MAX = 25000
+        with open(path, "r", encoding="utf-8", errors="ignore") as f:
+            content = f.read(MAX)
+        truncated = len(content) == MAX
+        if truncated:
+            content += "\n\n... [FILE TRUNCATED — showing first 25,000 characters] ..."
+        return {"success": True, "path": path, "content": content, "truncated": truncated}
+    except FileNotFoundError:
+        return {"success": False, "error": f"File not found: {path}", "content": ""}
+    except Exception as e:
+        return {"success": False, "error": str(e), "content": ""}
+
+
+@app.post("/api/ide/run-command")
+async def ide_run_command(request: Request):
+    """Run a manual shell command from the terminal panel."""
+    data = await request.json()
+    command = data.get("command", "").strip()
+    cwd = data.get("cwd") or _ide_session.get("workspace", ".")
+    if not command:
+        return {"success": False, "error": "No command"}
+    try:
+        proc = await asyncio.create_subprocess_shell(
+            command, cwd=cwd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.STDOUT,
+            limit=256*1024
+        )
+        try:
+            stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=30.0)
+        except asyncio.TimeoutError:
+            proc.kill()
+            stdout = b"[TIMEOUT after 30s]"
+            proc.returncode = -1
+        output = stdout.decode("utf-8", errors="replace")[:10000]
+        return {"success": True, "output": output, "returncode": proc.returncode or 0}
+    except Exception as e:
+        return {"success": False, "error": str(e), "output": str(e), "returncode": 1}
+
+
+@app.post("/api/ide/memories")
+async def ide_add_memory(request: Request):
+    """Add a memory entry."""
+    global _ide_memories
+    data = await request.json()
+    mem = {"type": data.get("type", "note"), "content": data.get("content", "")}
+    if not mem["content"]:
+        return {"success": False, "error": "Empty content"}
+    # Deduplicate
+    if not any(m["content"] == mem["content"] for m in _ide_memories):
+        _ide_memories.append(mem)
+    # Persist
+    mem_file = os.path.join(os.path.dirname(__file__), ".ide_memory.json")
+    try:
+        with open(mem_file, "w") as f:
+            json.dump(_ide_memories, f, indent=2)
+    except Exception:
+        pass
+    return {"success": True, "count": len(_ide_memories)}
+
+
+@app.delete("/api/ide/memories")
+async def ide_clear_memories():
+    """Clear all memories."""
+    global _ide_memories
+    _ide_memories = []
+    mem_file = os.path.join(os.path.dirname(__file__), ".ide_memory.json")
+    try:
+        with open(mem_file, "w") as f:
+            json.dump([], f)
+    except Exception:
+        pass
+    return {"success": True}
+
+
+@app.post("/api/ide/stop")
+async def ide_stop():
+    """Stop the running agentic loop."""
+    global _ide_running
+    _ide_running = False
+    _ide_push_event("STOPPED", {"reason": "user_stop"})
+    return {"success": True}
+
+
+# ─── APK Reverse Engineering Feature ─────────────────────────────────────────
 
 @app.post("/api/analyze-apk")
 async def analyze_apk(file: UploadFile = File(...)):
@@ -1178,6 +1793,21 @@ async def pull_apk_data(request: Request):
         
     except Exception as e:
         return {"success": False, "error": str(e)}
+
+# ============================================================================
+# IMPORTANT: Mount static files LAST so all /api/* routes take priority.
+# StaticFiles mounted at "/" is a catch-all — anything before it wins.
+# ============================================================================
+if static_path:
+    app.mount("/", StaticFiles(directory=str(static_path), html=True), name="static")
+else:
+    @app.get("/")
+    async def root():
+        return {
+            "message": "testinggpt Web API is running. Frontend not built yet.",
+            "paths_searched": [str(p) for p in possible_paths],
+            "tip": "Run 'npm run build' in the web interface folder or check your PYTHONPATH."
+        }
 
 if __name__ == "__main__":
     import uvicorn

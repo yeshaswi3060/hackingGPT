@@ -480,21 +480,45 @@ class AgentController:
                     self.sessions.update_status(SessionStatus.PAUSED)
                 elif self._last_tool_success:
                     # ─── RELENTLESS PERSISTENCE & ANTI-LOOP LOGIC ───
-                    
+
+                    # 4. Proactive Strategy Advisor: Turn-based re-evaluation
+                    if self._total_turns % 5 == 0 and self._total_turns > 0:
+                        # Build a specific, intelligence-driven strategy nudge
+                        key_findings = getattr(self.backend, '_key_findings', [])
+                        findings_summary = "\n".join(f"  - {f}" for f in key_findings[-15:]) if key_findings else "  None yet"
+                        nudge_msg = (
+                            f"💡 STRATEGY ADVISOR CHECKPOINT — Turn {self._total_turns}\n\n"
+                            f"INTELLIGENCE GATHERED SO FAR:\n{findings_summary}\n\n"
+                            f"STRATEGIC ANALYSIS REQUIRED:\n"
+                            f"1. What attack surfaces have you NOT yet tested? (Check: all ports, all web paths, all parameters)\n"
+                            f"2. Have you tested SQLi/XSS/LFI on every discovered endpoint?\n"
+                            f"3. Have you searched for known CVEs for every identified version?\n"
+                            f"4. Have you tried password spraying with discovered credentials?\n"
+                            f"5. Are there any credentials found that you haven't reused elsewhere?\n\n"
+                            f"MANDATORY NEXT ACTION: Based on the intelligence above, choose the HIGHEST VALUE "
+                            f"unexplored attack vector and execute it with your FIRST tool call in your response."
+                        )
+                        self.events.emit_message(f"🧠 Turn {self._total_turns} Strategy Check...", "info")
+                        await asyncio.sleep(0.1)
+                        await self.backend.query(nudge_msg)
+                        continue
+
                     # 1. Deep Dive: Finding confirmed but no flag
                     if self._finding_detected_this_turn and not flags_found:
-                        self._finding_detected_this_turn = False # Reset for next pass
+                        self._finding_detected_this_turn = False
                         self._consecutive_no_progress_turns = 0
-                        
                         nudge_msg = (
-                            "🔥 VULNERABILITY CONFIRMED! This is a major breakthrough. "
-                            "Now DEEP DIVE: Immediately escalate your findings to read sensitive files, "
-                            "extract environment variables, or get a shell. Do NOT just re-report the same data—EXPLOIT IT.\n\n"
-                            "PIVOT: If you cannot escalate the current finding immediately, move to a different file, port, or endpoint. "
-                            "DO NOT get stuck on one vulnerability."
+                            f"🔥 VULNERABILITY CONFIRMED on Turn {self._total_turns}! IMMEDIATE ESCALATION REQUIRED.\n\n"
+                            "DO NOT re-report the same finding. Your ONLY job now is to EXPLOIT it deeper:\n"
+                            "  → If SQLi found: Use sqlmap --dump or UNION SELECT to extract the full database\n"
+                            "  → If LFI found: Try to read /etc/passwd, /etc/shadow, SSH keys, or source code files\n"
+                            "  → If RCE/SSTI found: Execute id, whoami, cat /etc/passwd, ls -la /root\n"
+                            "  → If a config file found: Search it for passwords, API keys, DB credentials\n"
+                            "  → If credentials found: Try them on SSH, FTP, admin panels, APIs, and other discovered services\n\n"
+                            "EXECUTE THE EXPLOITATION NOW. Make your first tool call count."
                         )
                         self.events.emit_message(nudge_msg, "info")
-                        await asyncio.sleep(2)
+                        await asyncio.sleep(0.1)
                         await self.backend.query(nudge_msg)
                         continue
 
@@ -509,22 +533,55 @@ class AgentController:
                                 "If web scanning fails, try port enumeration. If one wordlist fails, try another or a different tool."
                             )
                             self.events.emit_message(nudge_msg, "warning")
-                            await asyncio.sleep(2)
+                            await asyncio.sleep(0.1)
                             await self.backend.query(nudge_msg)
                             continue
 
-                    # 3. Mission Incomplete Nudge (Only if no progress for multiple turns)
+                    # 3. Escalating no-progress nudge
                     if not flags_found:
                         self._consecutive_no_progress_turns += 1
-                        if self._consecutive_no_progress_turns >= 3: # Nudge after 3 turns with no progress
+                        tier = self._consecutive_no_progress_turns
+                        if tier >= 3:
                             self._consecutive_no_progress_turns = 0
-                            nudge_msg = (
-                                "⚠️ MISSION INCOMPLETE: No flags captured yet. RELENTLESS PERSISTENCE REQUIRED. "
-                                "You are FORBIDDEN from stopping until a technical breach is achieved. "
-                                "Analyze your previous failures and try a new attack vector (e.g., LFI, SSTI, Brute-force, or custom Python exploit)."
-                            )
+                            if tier <= 5:
+                                # Tier 1: Suggest new specific attack paths
+                                nudge_msg = (
+                                    f"⚠️ NO PROGRESS DETECTED — Turn {self._total_turns} — ESCALATING TO TIER 2\n\n"
+                                    "Your current approach isn't yielding results. MANDATORY new attack vectors to try NOW:\n"
+                                    "  1. Run a full port scan: nmap -p- --min-rate 5000 TARGET\n"
+                                    "  2. Fuzz ALL web directories: gobuster/ffuf with raft-large-words.txt\n"
+                                    "  3. Test for LFI: curl 'TARGET/page?file=../../../../etc/passwd'\n"
+                                    "  4. Test for SSTI: curl 'TARGET/page?q={{7*7}}'\n"
+                                    "  5. Check for exposed .git: curl TARGET/.git/HEAD\n"
+                                    "  6. Try default creds: admin:admin, admin:password, root:root\n"
+                                    "Pick the MOST PROMISING one and execute it immediately."
+                                )
+                            elif tier <= 8:
+                                # Tier 2: Force Python script approach
+                                nudge_msg = (
+                                    f"🚨 CRITICAL — Turn {self._total_turns} — STANDARD TOOLS FAILING — TIER 3 OVERRIDE\n\n"
+                                    "Standard tools have failed to find a breach. You MUST now write a CUSTOM Python exploit.\n"
+                                    "Use the python_generator tool or write_to_file + terminal_execute to:\n"
+                                    "  1. Write a custom port scanner with banner grabbing\n"
+                                    "  2. Write a parameter fuzzer using requests library\n"
+                                    "  3. Write a brute-force script for the login page\n"
+                                    "  4. Write a blind SQL injection tester\n"
+                                    "DO IT NOW. Use python_generator or write_to_file immediately."
+                                )
+                            else:
+                                # Tier 3: Last resort — dump everything
+                                nudge_msg = (
+                                    f"🔴 EMERGENCY PROTOCOL — Turn {self._total_turns} — LAST RESORT MEASURES\n\n"
+                                    "All standard and custom approaches have failed. Execute ALL of the following in rapid succession:\n"
+                                    "  1. Try SSRF to internal metadata: curl TARGET/api?url=http://169.254.169.254/\n"
+                                    "  2. Try XML injection: curl -d '<foo>&xxe;</foo>' TARGET/api\n"
+                                    "  3. Try HTTP verb tampering: curl -X PUT/DELETE/PATCH TARGET/\n"
+                                    "  4. Try account enumeration via timing attacks on login\n"
+                                    "  5. Check for websockets: javascript:new WebSocket('ws://TARGET')\n"
+                                    "Execute ALL of them. Report EVERY response code and body received."
+                                )
                             self.events.emit_message(nudge_msg, "warning")
-                            await asyncio.sleep(2)
+                            await asyncio.sleep(0.1)
                             await self.backend.query(nudge_msg)
                             continue
                     else:
@@ -543,7 +600,7 @@ class AgentController:
                             f"Do not report until a breach is attempted on {next_url}."
                         )
                         self.events.emit_message(f"📍 PIVOTING to: {next_url}", "info")
-                        await asyncio.sleep(2)
+                        await asyncio.sleep(0.1)
                         await self.backend.query(nudge_msg)
                         continue
 
@@ -563,7 +620,7 @@ class AgentController:
                             "RELENTLESS EXPLORATION IS MANDATORY."
                         )
                         self.events.emit_message(nudge_msg, "info")
-                        await asyncio.sleep(2)
+                        await asyncio.sleep(0.1)
                         await self.backend.query(nudge_msg)
                         continue 
                     else:
@@ -571,21 +628,7 @@ class AgentController:
                         # Fallback nudge if we somehow reached here
                         nudge_msg = "🚨 PROTOCOL VIOLATION: No breach detected. RESUME ATTACK IMMEDIATELY. Try another vector or write a Python exploit."
                         self.events.emit_message(nudge_msg, "error")
-                        await asyncio.sleep(2)
-                        await self.backend.query(nudge_msg)
-                        continue
-
-                    # 4. Proactive Strategy Advisor: Turn-based re-evaluation
-                    if self._total_turns % 5 == 0:
-                        nudge_msg = (
-                            "💡 STRATEGY ADVISOR CHECKPOINT: You have completed 5 turns. "
-                            "Stop and RE-EVALUATE the entire attack surface. "
-                            "Are there ports you haven't scanned? Wordlists you haven't finished? "
-                            "WAF bypasses you haven't tried? Proactively design a new, MORE AGGRESSIVE "
-                            "attack chain now. Focus on TIER 3 (Relentless Breach) techniques."
-                        )
-                        self.events.emit_message(nudge_msg, "info")
-                        await asyncio.sleep(2)
+                        await asyncio.sleep(0.1)
                         await self.backend.query(nudge_msg)
                         continue
                 else:
